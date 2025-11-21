@@ -2,184 +2,206 @@ import React, { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { forgotPassword, verifyOtp, resetPassword, clearForgotPasswordState } from '../features/authSlice'
 import { useNavigate, Link } from 'react-router-dom'
+import { Container, Form, Button, Alert, Card } from 'react-bootstrap'
 
 export default function ForgotPassword() {
-    const dispatch = useDispatch()
-    const navigate = useNavigate()
-    const { loading, error, otpSent, otpVerified, resetSuccess } = useSelector((s) => s.auth)
+  const dispatch = useDispatch()
+  const navigate = useNavigate()
+  const { loading, error, otpSent, otpVerified, resetSuccess } = useSelector((s) => s.auth)
 
-    const [step, setStep] = useState(1) // 1: Email, 2: OTP, 3: New Password
-    const [email, setEmail] = useState('')
-    const [otp, setOtp] = useState('')
-    const [newPassword, setNewPassword] = useState('')
-    const [confirmPassword, setConfirmPassword] = useState('')
+  const [step, setStep] = useState(1)
+  const [email, setEmail] = useState('')
+  const [otp, setOtp] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
 
-    // Reset state khi component mount
-    useEffect(() => {
-        dispatch(clearForgotPasswordState())
-    }, [dispatch])
+  useEffect(() => {
+    dispatch(clearForgotPasswordState())
+  }, [dispatch])
 
-    // Chuyển sang bước tiếp theo khi OTP được gửi
-    useEffect(() => {
-        if (otpSent && step === 1) {
-            setStep(2)
-        }
-    }, [otpSent, step])
-
-    // Chuyển sang bước nhập mật khẩu mới khi OTP được xác thực
-    useEffect(() => {
-        if (otpVerified && step === 2) {
-            setStep(3)
-        }
-    }, [otpVerified, step])
-
-    // Chuyển về trang login khi reset thành công
-    useEffect(() => {
-        if (resetSuccess) {
-            setTimeout(() => {
-                navigate('/login')
-            }, 2000)
-        }
-    }, [resetSuccess, navigate])
-
-    const handleSendOtp = async (e) => {
-        e.preventDefault()
-        if (!email) return
-        try {
-            await dispatch(forgotPassword({ email })).unwrap()
-        } catch (err) {
-            // Error handled by slice
-        }
+  useEffect(() => {
+    if (otpSent && step === 1) {
+      setStep(2)
     }
+  }, [otpSent, step])
 
-    const handleVerifyOtp = async (e) => {
-        e.preventDefault()
-        if (!otp) return
-        try {
-            await dispatch(verifyOtp({ email, otp })).unwrap()
-        } catch (err) {
-            // Error handled by slice
-        }
+  useEffect(() => {
+    if (otpVerified && step === 2) {
+      setStep(3)
     }
+  }, [otpVerified, step])
 
-    const handleResetPassword = async (e) => {
-        e.preventDefault()
-        if (!newPassword || newPassword !== confirmPassword) {
-            alert('Mật khẩu không khớp!')
-            return
-        }
-        try {
-            await dispatch(resetPassword({ email, otp, newPassword })).unwrap()
-        } catch (err) {
-            // Error handled by slice
-        }
+  useEffect(() => {
+    if (resetSuccess) {
+      setTimeout(() => {
+        navigate('/login')
+      }, 2000)
     }
+  }, [resetSuccess, navigate])
 
-    return (
-        <div className="page">
-            <div className="card">
-                <h2>Quên Mật khẩu</h2>
+  const handleSendOtp = async (e) => {
+    e.preventDefault()
+    if (!email) return
+    try {
+      await dispatch(forgotPassword({ email })).unwrap()
+    } catch (err) {
+      // Error handled by slice
+    }
+  }
 
-                {/* Bước 1: Nhập Email */}
-                {step === 1 && (
-                    <form onSubmit={handleSendOtp}>
-                        <p>Nhập email của bạn để nhận mã OTP</p>
-                        <label>
-                            Email
-                            <input
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                type="email"
-                                required
-                                disabled={loading}
-                            />
-                        </label>
-                        <button type="submit" disabled={loading}>
-                            {loading ? 'Đang gửi...' : 'Gửi OTP'}
-                        </button>
-                        {error && <div className="error">{error}</div>}
-                    </form>
-                )}
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault()
+    if (!otp) return
+    try {
+      await dispatch(verifyOtp({ email, otp })).unwrap()
+    } catch (err) {
+      // Error handled by slice
+    }
+  }
 
-                {/* Bước 2: Nhập OTP */}
-                {step === 2 && (
-                    <form onSubmit={handleVerifyOtp}>
-                        <div className="success">✅ OTP đã được gửi đến {email}</div>
-                        <p>Vui lòng kiểm tra email và nhập mã OTP (6 chữ số)</p>
-                        <label>
-                            Mã OTP
-                            <input
-                                value={otp}
-                                onChange={(e) => setOtp(e.target.value)}
-                                type="text"
-                                maxLength="6"
-                                required
-                                disabled={loading}
-                                placeholder="Nhập 6 chữ số"
-                            />
-                        </label>
-                        <button type="submit" disabled={loading}>
-                            {loading ? 'Đang xác thực...' : 'Xác thực OTP'}
-                        </button>
-                        {error && <div className="error">{error}</div>}
-                        <div style={{ marginTop: 10 }}>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setStep(1)
-                                    dispatch(clearForgotPasswordState())
-                                }}
-                                style={{ background: 'transparent', color: '#666' }}
-                            >
-                                ← Quay lại
-                            </button>
-                        </div>
-                    </form>
-                )}
+  const handleResetPassword = async (e) => {
+    e.preventDefault()
+    if (!newPassword || newPassword !== confirmPassword) {
+      alert('Mật khẩu không khớp!')
+      return
+    }
+    try {
+      await dispatch(resetPassword({ email, otp, newPassword })).unwrap()
+    } catch (err) {
+      // Error handled by slice
+    }
+  }
 
-                {/* Bước 3: Nhập mật khẩu mới */}
-                {step === 3 && (
-                    <form onSubmit={handleResetPassword}>
-                        <div className="success">✅ OTP hợp lệ</div>
-                        <p>Nhập mật khẩu mới của bạn</p>
-                        <label>
-                            Mật khẩu mới
-                            <input
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                type="password"
-                                required
-                                disabled={loading}
-                                minLength="6"
-                            />
-                        </label>
-                        <label>
-                            Xác nhận mật khẩu
-                            <input
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                type="password"
-                                required
-                                disabled={loading}
-                                minLength="6"
-                            />
-                        </label>
-                        <button type="submit" disabled={loading}>
-                            {loading ? 'Đang đặt lại...' : 'Đặt lại mật khẩu'}
-                        </button>
-                        {error && <div className="error">{error}</div>}
-                        {resetSuccess && (
-                            <div className="success">
-                                ✅ Đặt lại mật khẩu thành công! Đang chuyển về trang đăng nhập...
-                            </div>
-                        )}
-                    </form>
-                )}
+  return (
+    <Container className="d-flex align-items-center justify-content-center" style={{ minHeight: '100vh' }}>
+      <div style={{ width: '100%', maxWidth: '400px' }}>
+        <Card className="shadow-lg">
+          <Card.Body className="p-5">
+            <Card.Title className="text-center mb-4 fw-bold fs-4">Quên Mật khẩu</Card.Title>
 
-                <div style={{ marginTop: 20, textAlign: 'center' }}>
-                    <Link to="/login">Quay lại Đăng nhập</Link>
+            {/* Bước 1: Nhập Email */}
+            {step === 1 && (
+              <Form onSubmit={handleSendOtp}>
+                <p className="text-muted mb-3">Nhập email của bạn để nhận mã OTP</p>
+                <Form.Group className="mb-4">
+                  <Form.Label className="fw-500 text-primary">Email</Form.Label>
+                  <Form.Control
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={loading}
+                    placeholder="Enter your email"
+                  />
+                </Form.Group>
+                <Button
+                  variant="primary"
+                  type="submit"
+                  disabled={loading}
+                  className="w-100 fw-600"
+                  size="lg"
+                >
+                  {loading ? 'Đang gửi...' : 'Gửi OTP'}
+                </Button>
+                {error && <Alert variant="danger" className="mt-3">{error}</Alert>}
+              </Form>
+            )}
+
+            {/* Bước 2: Nhập OTP */}
+            {step === 2 && (
+              <Form onSubmit={handleVerifyOtp}>
+                <Alert variant="success" className="mb-3">✅ OTP đã được gửi đến {email}</Alert>
+                <p className="text-muted mb-3">Vui lòng kiểm tra email và nhập mã OTP (6 chữ số)</p>
+                <Form.Group className="mb-4">
+                  <Form.Label className="fw-500 text-primary">Mã OTP</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    maxLength="6"
+                    required
+                    disabled={loading}
+                    placeholder="Nhập 6 chữ số"
+                  />
+                </Form.Group>
+                <Button
+                  variant="primary"
+                  type="submit"
+                  disabled={loading}
+                  className="w-100 fw-600"
+                  size="lg"
+                >
+                  {loading ? 'Đang xác thực...' : 'Xác thực OTP'}
+                </Button>
+                {error && <Alert variant="danger" className="mt-3">{error}</Alert>}
+                <div className="mt-3">
+                  <Button
+                    variant="link"
+                    onClick={() => {
+                      setStep(1)
+                      dispatch(clearForgotPasswordState())
+                    }}
+                    className="text-muted p-0"
+                  >
+                    ← Quay lại
+                  </Button>
                 </div>
+              </Form>
+            )}
+
+            {/* Bước 3: Nhập mật khẩu mới */}
+            {step === 3 && (
+              <Form onSubmit={handleResetPassword}>
+                <Alert variant="success" className="mb-3">✅ OTP hợp lệ</Alert>
+                <p className="text-muted mb-3">Nhập mật khẩu mới của bạn</p>
+                <Form.Group className="mb-4">
+                  <Form.Label className="fw-500 text-primary">Mật khẩu mới</Form.Label>
+                  <Form.Control
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    disabled={loading}
+                    minLength="6"
+                    placeholder="Enter new password"
+                  />
+                </Form.Group>
+                <Form.Group className="mb-4">
+                  <Form.Label className="fw-500 text-primary">Xác nhận mật khẩu</Form.Label>
+                  <Form.Control
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    disabled={loading}
+                    minLength="6"
+                    placeholder="Confirm password"
+                  />
+                </Form.Group>
+                <Button
+                  variant="primary"
+                  type="submit"
+                  disabled={loading}
+                  className="w-100 fw-600"
+                  size="lg"
+                >
+                  {loading ? 'Đang đặt lại...' : 'Đặt lại mật khẩu'}
+                </Button>
+                {error && <Alert variant="danger" className="mt-3">{error}</Alert>}
+                {resetSuccess && (
+                  <Alert variant="success" className="mt-3">
+                    ✅ Đặt lại mật khẩu thành công! Đang chuyển về trang đăng nhập...
+                  </Alert>
+                )}
+              </Form>
+            )}
+
+            <div className="mt-4 text-center">
+              <Link to="/login" className="text-primary fw-500">Quay lại Đăng nhập</Link>
             </div>
-        </div>
-    )
+          </Card.Body>
+        </Card>
+      </div>
+    </Container>
+  )
 }
