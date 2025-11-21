@@ -99,6 +99,7 @@ router.post('/forgot-password', async (req, res) => {
       return res.json({ message: 'Nếu email tồn tại, OTP đã được gửi' })
     }
 
+    
     // Tạo OTP 6 số
     const otp = Math.floor(100000 + Math.random() * 900000).toString()
 
