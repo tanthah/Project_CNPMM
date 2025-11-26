@@ -4,7 +4,7 @@ import cors from 'cors'
 import authRoutes from './src/routes/auth.js'
 import registerRoutes from './src/routes/registerRoutes.js'
 import connectDB from './src/config/db.js'
-import userRoutes from './src/routes/userRoutes.js'
+import editUserRoutes from './src/routes/editUserRoutes.js'
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -24,7 +24,7 @@ app.use('/uploads', express.static('uploads'));
 
 app.use('/api/auth', authRoutes)
 app.use('/api/auth', registerRoutes)
-app.use('/api/user', userRoutes)
+app.use('/api/user', editUserRoutes)
 app.get('/api/health', (req, res) => {
   res.json({ ok: true })
 })

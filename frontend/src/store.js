@@ -1,14 +1,22 @@
 import { configureStore } from '@reduxjs/toolkit'
 import authReducer from './redux/authSlice'
 import editUserReducer from './redux/editUserSlice'
-import registerUserReducer from './redux/registerSlice'
+import registerReducer from './redux/registerSlice'
 
 const store = configureStore({
   reducer: {
     auth: authReducer,
-    user: editUserReducer,
-    register: registerUserReducer,
+    editUser: editUserReducer,
+    register: registerReducer,
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        // Ignore these paths in the state
+        ignoredActions: ['register/setImageFile'],
+        ignoredPaths: ['register.imageFile'],
+      },
+    }),
 })
 
 export default store
