@@ -6,12 +6,8 @@ export const fetchUserProfile = createAsyncThunk(
   'user/fetchProfile',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get('/user/profile', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      return response.data;
+      const response = await axios.get('/user/profile');
+      return response.data.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Không thể tải thông tin người dùng');
     }
@@ -22,13 +18,8 @@ export const updateUserProfile = createAsyncThunk(
   'user/updateProfile',
   async (userData, { rejectWithValue }) => {
     try {
-      const response = await axios.put('/user/profile', userData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      return response.data;
+      const response = await axios.put('/user/profile', userData);
+      return response.data.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Không thể cập nhật thông tin');
     }
@@ -39,9 +30,8 @@ export const uploadAvatar = createAsyncThunk(
   'user/uploadAvatar',
   async (formData, { rejectWithValue }) => {
     try {
-      const response = await axios.post('/api/user/upload-avatar', formData, {
+      const response = await axios.post('/user/upload-avatar', formData, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'multipart/form-data'
         }
       });
@@ -101,7 +91,7 @@ const userSlice = createSlice({
       })
       .addCase(updateUserProfile.fulfilled, (state, action) => {
         state.updating = false;
-        state.user = action.payload.data;
+        state.user = action.payload;
         state.success = true;
         state.successMessage = 'Cập nhật thông tin thành công!';
       })
@@ -116,7 +106,7 @@ const userSlice = createSlice({
       })
       .addCase(uploadAvatar.fulfilled, (state, action) => {
         state.uploadingAvatar = false;
-        if (state.user) {
+        if (state.user && action.payload.avatar) {
           state.user.avatar = action.payload.avatar;
         }
         state.success = true;

@@ -1,6 +1,6 @@
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
-import multer from 'multer';
+import fs from 'fs';
 import path from 'path';
 
 // Get user profile
@@ -120,6 +120,22 @@ export const uploadAvatar = async (req, res) => {
       });
     }
 
+    // Get current user to delete old avatar
+    const currentUser = await User.findById(userId);
+    
+    // Delete old avatar file if exists
+    if (currentUser.avatar) {
+      const oldAvatarPath = path.join(process.cwd(), currentUser.avatar);
+      if (fs.existsSync(oldAvatarPath)) {
+        try {
+          fs.unlinkSync(oldAvatarPath);
+          console.log('Old avatar deleted:', oldAvatarPath);
+        } catch (err) {
+          console.error('Error deleting old avatar:', err);
+        }
+      }
+    }
+
     // File validation already done by multer middleware
     const avatarUrl = `/uploads/avatars/${req.file.filename}`;
 
@@ -132,7 +148,8 @@ export const uploadAvatar = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Tải ảnh lên thành công',
-      data: updatedUser
+      data: updatedUser,
+      avatar: avatarUrl
     });
   } catch (error) {
     res.status(500).json({
