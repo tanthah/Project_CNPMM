@@ -3,6 +3,9 @@ import multer from 'multer';
 import path from 'path';
 import {getUserProfile, updateUserProfile, uploadAvatar} from '../controllers/userController.js';
 import { authenticateToken } from '../middleware/authMiddleware.js';
+import { isUserOrAdmin } from '../middleware/authorization.js';
+import { updateProfileValidation } from '../middleware/validators.js';
+import { apiLimiter, uploadLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
@@ -28,14 +31,40 @@ const upload = multer({
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Chỉ cho phép upload file ảnh'));
+      cb(new Error('Chỉ cho phép upload file ảnh (JPG, PNG, GIF, WEBP)'));
     }
   }
 });
 
-// Routes
-router.get('/profile', authenticateToken, getUserProfile);
-router.put('/profile', authenticateToken, updateUserProfile);
-router.post('/upload-avatar', authenticateToken, upload.single('avatar'), uploadAvatar);
+// Routes với Authentication + Authorization + Rate Limiting
+
+// GET /api/user/profile
+// Chỉ user đã đăng nhập mới xem được profile của chính họ
+router.get('/profile', 
+  apiLimiter,
+  authenticateToken, 
+  isUserOrAdmin,
+  getUserProfile
+);
+
+// PUT /api/user/profile
+// Chỉ user đã đăng nhập mới cập nhật được profile của chính họ
+router.put('/profile', 
+  apiLimiter,
+  authenticateToken, 
+  isUserOrAdmin,
+  updateProfileValidation,
+  updateUserProfile
+);
+
+// POST /api/user/upload-avatar
+// Chỉ user đã đăng nhập mới upload được avatar của chính họ
+router.post('/upload-avatar', 
+  uploadLimiter,
+  authenticateToken, 
+  isUserOrAdmin,
+  upload.single('avatar'), 
+  uploadAvatar
+);
 
 export default router;
