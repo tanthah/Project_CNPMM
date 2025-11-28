@@ -8,6 +8,15 @@ import {
   uploadAvatar, 
   clearMessages 
 } from '../redux/editUserSlice';
+import {
+  validateName,
+  validateEmail,
+  validatePhone,
+  validateDateOfBirth,
+  validateGender,
+  validateImageFile,
+  sanitizeFormData
+} from '../utils/validation';
 
 const EditProfile = () => {
   const dispatch = useDispatch();
@@ -62,41 +71,75 @@ const EditProfile = () => {
     }
   }, [error, success, dispatch]);
 
+  // Validate form using imported validation functions
   const validateForm = () => {
     const errors = {};
     
-    if (!formData.name.trim()) {
-      errors.name = 'Tên không được để trống';
-    }
+    // Validate name
+    const nameError = validateName(formData.name);
+    if (nameError) errors.name = nameError;
     
-    if (!formData.email.trim()) {
-      errors.email = 'Email không được để trống';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      errors.email = 'Email không hợp lệ';
-    }
+    // Validate email
+    const emailError = validateEmail(formData.email);
+    if (emailError) errors.email = emailError;
     
-    if (formData.phone && !/^\d{10,11}$/.test(formData.phone.replace(/\D/g, ''))) {
-      errors.phone = 'Số điện thoại phải có 10-11 chữ số';
-    }
+    // Validate phone (optional field)
+    const phoneError = validatePhone(formData.phone);
+    if (phoneError) errors.phone = phoneError;
+    
+    // Validate date of birth (optional field)
+    const dobError = validateDateOfBirth(formData.dateOfBirth);
+    if (dobError) errors.dateOfBirth = dobError;
+    
+    // Validate gender
+    const genderError = validateGender(formData.gender);
+    if (genderError) errors.gender = genderError;
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
+  // Validate individual field on change
+  const validateField = (name, value) => {
+    let error = '';
+    
+    switch (name) {
+      case 'name':
+        error = validateName(value);
+        break;
+      case 'email':
+        error = validateEmail(value);
+        break;
+      case 'phone':
+        error = validatePhone(value);
+        break;
+      case 'dateOfBirth':
+        error = validateDateOfBirth(value);
+        break;
+      case 'gender':
+        error = validateGender(value);
+        break;
+      default:
+        break;
+    }
+    
+    return error;
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
     
-    // Clear error for this field
-    if (formErrors[name]) {
-      setFormErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
+    // Real-time validation
+    const fieldError = validateField(name, value);
+    setFormErrors(prev => ({
+      ...prev,
+      [name]: fieldError
+    }));
   };
 
   const handleAvatarClick = () => {
@@ -106,15 +149,10 @@ const EditProfile = () => {
   const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        alert('Vui lòng chọn file ảnh (JPG, PNG, GIF, WEBP)');
-        return;
-      }
-
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        alert('Kích thước ảnh không được vượt quá 5MB');
+      // Validate file using imported validation function
+      const fileError = validateImageFile(file);
+      if (fileError) {
+        alert(fileError);
         return;
       }
 
@@ -140,12 +178,15 @@ const EditProfile = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validate form before submitting
     if (!validateForm()) {
       return;
     }
 
     try {
-      await dispatch(updateUserProfile(formData)).unwrap();
+      // Sanitize form data before sending
+      const sanitizedData = sanitizeFormData(formData);
+      await dispatch(updateUserProfile(sanitizedData)).unwrap();
     } catch (err) {
       console.error('Update failed:', err);
     }
@@ -193,7 +234,7 @@ const EditProfile = () => {
                 </Alert>
               )}
 
-              <Form onSubmit={handleSubmit}>
+              <Form onSubmit={handleSubmit} noValidate>
                 {/* Avatar Section */}
                 <div className="text-center mb-4">
                   <div 
@@ -255,13 +296,13 @@ const EditProfile = () => {
                   <div className="mt-2">
                     <small className="text-muted">
                       <i className="bi bi-info-circle me-1"></i>
-                      Nhấp vào ảnh để thay đổi (Tối đa 5MB)
+                      Nhấp vào ảnh để thay đổi (JPG, PNG, GIF, WEBP - Tối đa 5MB)
                     </small>
                   </div>
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
                     onChange={handleAvatarChange}
                     style={{ display: 'none' }}
                   />
@@ -280,7 +321,7 @@ const EditProfile = () => {
                         name="name"
                         value={formData.name}
                         onChange={handleInputChange}
-                        placeholder="Nhập họ và tên"
+                        placeholder="Nhập họ và tên (2-50 ký tự)"
                         required
                         isInvalid={!!formErrors.name}
                         disabled={updating}
@@ -303,7 +344,7 @@ const EditProfile = () => {
                         name="email"
                         value={formData.email}
                         onChange={handleInputChange}
-                        placeholder="Nhập email"
+                        placeholder="example@email.com"
                         required
                         isInvalid={!!formErrors.email}
                         disabled={updating}
@@ -326,13 +367,16 @@ const EditProfile = () => {
                         name="phone"
                         value={formData.phone}
                         onChange={handleInputChange}
-                        placeholder="Nhập số điện thoại"
+                        placeholder="0912345678"
                         isInvalid={!!formErrors.phone}
                         disabled={updating}
                       />
                       <Form.Control.Feedback type="invalid">
                         {formErrors.phone}
                       </Form.Control.Feedback>
+                      <Form.Text className="text-muted">
+                        Không bắt buộc
+                      </Form.Text>
                     </Form.Group>
                   </Col>
 
@@ -348,8 +392,16 @@ const EditProfile = () => {
                         name="dateOfBirth"
                         value={formData.dateOfBirth}
                         onChange={handleInputChange}
+                        isInvalid={!!formErrors.dateOfBirth}
                         disabled={updating}
+                        max={new Date().toISOString().split('T')[0]}
                       />
+                      <Form.Control.Feedback type="invalid">
+                        {formErrors.dateOfBirth}
+                      </Form.Control.Feedback>
+                      <Form.Text className="text-muted">
+                        Không bắt buộc (Từ 13 tuổi)
+                      </Form.Text>
                     </Form.Group>
                   </Col>
 
@@ -364,12 +416,16 @@ const EditProfile = () => {
                         name="gender"
                         value={formData.gender}
                         onChange={handleInputChange}
+                        isInvalid={!!formErrors.gender}
                         disabled={updating}
                       >
                         <option value="male">Nam</option>
                         <option value="female">Nữ</option>
                         <option value="other">Khác</option>
                       </Form.Select>
+                      <Form.Control.Feedback type="invalid">
+                        {formErrors.gender}
+                      </Form.Control.Feedback>
                     </Form.Group>
                   </Col>
                 </Row>
@@ -413,7 +469,7 @@ const EditProfile = () => {
                 <h6 className="text-muted mb-3">Thông tin tài khoản</h6>
                 <div className="d-flex justify-content-between mb-2">
                   <small className="text-muted">ID:</small>
-                  <small className="text-end">{user._id}</small>
+                  <small className="text-end font-monospace">{user._id}</small>
                 </div>
                 <div className="d-flex justify-content-between mb-2">
                   <small className="text-muted">Vai trò:</small>
