@@ -6,11 +6,22 @@ const cartSchema = new mongoose.Schema(
 
     items: [
       {
-        productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
+        productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
         quantity: { type: Number, default: 1 },
-        price: Number
+        price: Number,           // giá gốc
+        finalPrice: Number,      // giá sau giảm
+        productName: String,
+        productImage: String,
+
+        attributes: {
+          type: Object,
+          default: {}
+        }
       }
-    ]
+    ],
+
+    totalQuantity: { type: Number, default: 0 },
+    totalPrice: { type: Number, default: 0 }
   },
   { timestamps: true }
 );

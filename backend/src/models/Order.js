@@ -14,6 +14,7 @@ const orderSchema = new mongoose.Schema(
 
     totalPrice: Number,
     shippingFee: Number,
+    discount: { type: Number, default: 0 },
 
     status: {
       type: String,
@@ -21,10 +22,29 @@ const orderSchema = new mongoose.Schema(
       enum: ["pending", "paid", "shipping", "completed", "cancelled"]
     },
 
-    addressId: { type: mongoose.Schema.Types.ObjectId, ref: "Address" },
+    paymentStatus: {
+      type: String,
+      enum: ["unpaid", "paid", "refunded"],
+      default: "unpaid"
+    },
 
     paymentMethod: String,
-    transactionId: String
+    transactionId: String,                  // (property) ref: string
+
+    addressId: { type: mongoose.Schema.Types.ObjectId, ref: "Address" },
+
+    notes: String,
+
+    shippingInfo: {
+      shippedAt: Date,
+      deliveredAt: Date,
+      trackingNumber: String,
+      carrier: String
+    },
+
+    cancelReason: String,
+
+    isReviewed: { type: Boolean, default: false }
   },
   { timestamps: true }
 );

@@ -5,14 +5,15 @@ import authRoutes from './src/routes/auth.js'
 import registerRoutes from './src/routes/registerRoutes.js'
 import connectDB from './src/config/db.js'
 import editUserRoutes from './src/routes/editUserRoutes.js'
+import productRoutes from './src/routes/productRoutes.js'
 
 // Import security middlewares
-import { 
-  helmetConfig, 
-  xssProtection, 
-  hppProtection, 
+import {
+  helmetConfig,
+  xssProtection,
+  hppProtection,
   sanitizeInput,
-  checkContentType 
+  checkContentType
 } from './src/middleware/security.js'
 import { generalLimiter } from './src/middleware/rateLimiter.js'
 
@@ -32,9 +33,9 @@ app.use(hppProtection)
 // 4. Rate Limiting - Giới hạn số request
 app.use(generalLimiter)
 
-// 5. CORS Configuration
+// 5. CORS - Cho phép frontend truy cập
 app.use(cors({
-  origin: ['http://localhost:5173'],
+  origin: ['http://localhost:5173', 'http://localhost:3000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -60,10 +61,11 @@ app.use('/uploads', express.static('uploads'))
 app.use('/api/auth', authRoutes)
 app.use('/api/auth', registerRoutes)
 app.use('/api/user', editUserRoutes)
+app.use('/api/products', productRoutes)
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
+  res.json({
     ok: true,
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
@@ -82,7 +84,7 @@ app.use((req, res) => {
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error('Error:', err.stack)
-  
+
   // Mongoose validation error
   if (err.name === 'ValidationError') {
     return res.status(400).json({
@@ -102,7 +104,7 @@ app.use((err, req, res, next) => {
 
   // JWT errors
   if (err.name === 'JsonWebTokenError') {
-    return res.status(401).json({
+    return res.status(400).json({
       success: false,
       message: 'Token không hợp lệ'
     })

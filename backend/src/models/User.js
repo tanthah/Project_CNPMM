@@ -9,9 +9,17 @@ const userSchema = new mongoose.Schema(
     avatar: { type: String, default: "" },
     dateOfBirth: Date,
     gender: { type: String, enum: ["male", "female", "other"], default: "other" },
-    role: { type: String, default: "user" }, // admin, user
+    role: { type: String, enum: ["admin", "user"], default: "user" },  // admin, user
+
+    isActive: { type: Boolean, default: true },
+
     resetPasswordOtp: String,
-    resetPasswordOtpExpires: Date
+    resetPasswordOtpExpires: Date,
+
+    // Dự phòng cho email verification trong tương lai
+    // verificationOtp: String,
+    // verificationOtpExpires: Date,
+    // emailVerified: { type: Boolean, default: false }
   },
   { timestamps: true }
 );
