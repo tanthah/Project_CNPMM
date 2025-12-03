@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { Container, Row, Col, Button, Badge, Spinner, Alert } from 'react-bootstrap'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchProductById } from '../redux/productSlice'
+import productApi from '../api/productApi'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Navigation, Pagination, Thumbs } from 'swiper/modules'
 import 'swiper/css'
@@ -19,12 +20,30 @@ export default function ProductDetail() {
     const { currentProduct, loading, error } = useSelector((s) => s.products)
     const [quantity, setQuantity] = useState(1)
     const [thumbsSwiper, setThumbsSwiper] = useState(null)
+    const viewIncrementedRef = useRef(false)
 
+    // Fetch product details
     useEffect(() => {
         if (id) {
             dispatch(fetchProductById(id))
         }
     }, [id, dispatch])
+
+    // Increment view count (chỉ gọi 1 lần)
+    useEffect(() => {
+        if (id && currentProduct && currentProduct._id === id && !viewIncrementedRef.current) {
+            console.log('🔵 Tăng lượt xem cho sản phẩm:', id)
+            viewIncrementedRef.current = true
+            productApi.incrementView(id)
+                .then(() => console.log('✅ Đã tăng lượt xem'))
+                .catch(err => console.error('❌ Lỗi khi tăng lượt xem:', err))
+        }
+    }, [id, currentProduct])
+
+    // Reset view increment flag when product changes
+    useEffect(() => {
+        viewIncrementedRef.current = false
+    }, [id])
 
     const handleIncrease = () => {
         if (currentProduct && quantity < currentProduct.stock) {

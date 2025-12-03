@@ -2,6 +2,7 @@ import express from 'express'
 import {
     getAllProducts,
     getProductDetail,
+    incrementProductView,
     getBestSellingProducts,
     getNewestProducts,
     getMostViewedProducts,
@@ -21,8 +22,9 @@ router.get('/most-viewed', getMostViewedProducts)
 router.get('/highest-discount', getHighestDiscountProducts)
 
 // Product detail routes
+// IMPORTANT: Specific routes MUST come before parameterized routes
+router.post('/:id/increment-view', incrementProductView) // Tăng lượt xem riêng biệt
 router.get('/:id', getProductDetail)
-// router.post('/:id/view', incrementView) // View increment is now handled in getProductDetail
 
 // Admin routes - TODO: Thêm authMiddleware và check admin role
 router.post('/', createProduct)           // CREATE

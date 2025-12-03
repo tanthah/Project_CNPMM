@@ -10,7 +10,7 @@ export const getAllProducts = async (req, res) => {
     }
 };
 
-// LẤY CHI TIẾT SẢN PHẨM (Tự động tăng lượt xem)
+// LẤY CHI TIẾT SẢN PHẨM (không tự động tăng lượt xem)
 export const getProductDetail = async (req, res) => {
     try {
         const product = await Product.findById(req.params.id);
@@ -18,12 +18,30 @@ export const getProductDetail = async (req, res) => {
             return res.status(404).json({ success: false, message: "Không tìm thấy sản phẩm" });
         }
 
+        res.json({ success: true, product });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// TĂNG LƯỢT XEM SẢN PHẨM (API riêng để tránh đếm trùng)
+export const incrementProductView = async (req, res) => {
+    try {
+        console.log('📍 incrementProductView called with id:', req.params.id);
+        const product = await Product.findById(req.params.id);
+        if (!product) {
+            console.log('❌ Product not found:', req.params.id);
+            return res.status(404).json({ success: false, message: "Không tìm thấy sản phẩm" });
+        }
+
         // Tăng lượt xem
         product.views += 1;
         await product.save();
+        console.log('✅ View incremented successfully. New views:', product.views);
 
-        res.json({ success: true, product });
+        res.json({ success: true, views: product.views });
     } catch (err) {
+        console.error('💥 Error in incrementProductView:', err.message);
         res.status(500).json({ success: false, message: err.message });
     }
 };

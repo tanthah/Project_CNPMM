@@ -18,6 +18,9 @@ const productApi = {
     },
     getHighestDiscount: () => {
         return axiosClient.get('/products/highest-discount')
+    },
+    incrementView: (id) => {
+        return axiosClient.post(`/products/${id}/increment-view`, {})
     }
 }
 
