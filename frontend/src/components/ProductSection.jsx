@@ -1,7 +1,7 @@
 import React from 'react'
 import { Row, Col, Spinner, Alert } from 'react-bootstrap'
 import ProductCard from './ProductCard'
-import './ProductSection.css'
+import './css/ProductSection.css'
 
 export default function ProductSection({ title, icon, products, loading, error, columns = 4 }) {
     // Calculate column size based on columns prop

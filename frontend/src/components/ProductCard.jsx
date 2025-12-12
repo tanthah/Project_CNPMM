@@ -1,7 +1,7 @@
 import React from 'react'
 import { Card } from 'react-bootstrap'
 import { useNavigate } from 'react-router-dom'
-import './ProductCard.css'
+import './css/ProductCard.css'
 
 export default function ProductCard({ product }) {
     const navigate = useNavigate()

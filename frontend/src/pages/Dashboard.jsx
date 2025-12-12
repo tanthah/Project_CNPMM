@@ -10,7 +10,7 @@ import {
 } from '../redux/productSlice'
 import { logout } from '../redux/authSlice'
 import ProductSection from '../components/ProductSection'
-import './Dashboard.css'
+import './css/Dashboard.css'
 
 export default function Dashboard() {
   const dispatch = useDispatch()

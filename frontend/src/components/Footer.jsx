@@ -13,7 +13,7 @@ export default function Footer() {
           <Col md={3} sm={6} className="mb-4">
             <h5 className="footer-heading">
               <i className="bi bi-shop me-2"></i>
-              UTE Shop
+              TV Shop
             </h5>
             <p className="text-muted small">
               Hệ thống bán lẻ điện thoại, laptop, tablet và phụ kiện chính hãng uy tín hàng đầu Việt Nam.
@@ -107,9 +107,9 @@ export default function Footer() {
         <Row className="py-3 border-top">
           <Col className="text-center">
             <p className="text-muted small mb-0">
-              © 2025 UTE Shop. All rights reserved. 
+              © 2025 TV Shop. All rights reserved. 
               <span className="mx-2">|</span>
-              Made with <i className="bi bi-heart-fill text-danger"></i> by UTE Students
+              Made with <i className="bi bi-heart-fill text-danger"></i> by TV Students
             </p>
           </Col>
         </Row>

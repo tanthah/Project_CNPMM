@@ -26,7 +26,7 @@ export default function Home() {
     dispatch(fetchBestSellers())
     dispatch(fetchMostViewed())
     dispatch(fetchTopDiscounts())
-  }, [dispatch, location.pathname])
+  }, [dispatch])
 
   const features = [
     {
@@ -76,7 +76,7 @@ export default function Home() {
                 </span>
               </div>
               <h1 className="display-3 fw-bold mb-4">
-                Chào mừng đến với <span className="text-gradient">UTE Shop</span>
+                Chào mừng đến với <span className="text-gradient">TV Shop</span>
               </h1>
               <p className="lead text-white-50 mb-5 mx-auto" style={{ maxWidth: '600px' }}>
                 Khám phá hàng ngàn sản phẩm công nghệ chất lượng cao với mức giá ưu đãi nhất dành cho sinh viên.

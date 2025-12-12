@@ -1,0 +1,229 @@
+// backend/src/controllers/couponController.js
+import { Coupon } from '../models/Coupon.js';
+import Order from '../models/Order.js';
+
+// ✅ GET USER COUPONS
+export const getUserCoupons = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const status = req.query.status || 'active'; // active, expired, used
+
+    const now = new Date();
+    let query = { userId };
+
+    if (status === 'active') {
+      query.isActive = true;
+      query.expiryDate = { $gt: now };
+      query.$or = [
+        { maxUses: null },
+        { $expr: { $lt: ['$usedCount', '$maxUses'] } }
+      ];
+    } else if (status === 'expired') {
+      query.expiryDate = { $lte: now };
+    } else if (status === 'used') {
+      query.$expr = { $gte: ['$usedCount', '$maxUses'] };
+    }
+
+    const coupons = await Coupon.find(query).sort({ createdAt: -1 });
+
+    res.json({ 
+      success: true, 
+      coupons,
+      count: coupons.length
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ✅ VALIDATE COUPON
+export const validateCoupon = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { code, orderValue } = req.body;
+
+    const coupon = await Coupon.findOne({ 
+      code: code.toUpperCase(),
+      $or: [
+        { userId: null }, // Public coupons
+        { userId }       // User-specific coupons
+      ]
+    });
+
+    if (!coupon) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Mã giảm giá không tồn tại' 
+      });
+    }
+
+    // Check if coupon is valid
+    const validation = coupon.isValid(orderValue);
+    
+    if (!validation.valid) {
+      return res.status(400).json({ 
+        success: false, 
+        message: validation.message 
+      });
+    }
+
+    // Calculate discount
+    const discount = coupon.calculateDiscount(orderValue);
+
+    res.json({ 
+      success: true, 
+      valid: true,
+      coupon: {
+        code: coupon.code,
+        type: coupon.type,
+        value: coupon.value,
+        discount,
+        finalAmount: orderValue - discount
+      },
+      message: 'Mã giảm giá hợp lệ' 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ✅ APPLY COUPON TO ORDER (called during order creation)
+export const applyCouponToOrder = async (couponCode, userId, orderValue) => {
+  const coupon = await Coupon.findOne({ 
+    code: couponCode.toUpperCase(),
+    $or: [
+      { userId: null },
+      { userId }
+    ]
+  });
+
+  if (!coupon) {
+    throw new Error('Mã giảm giá không tồn tại');
+  }
+
+  const validation = coupon.isValid(orderValue);
+  
+  if (!validation.valid) {
+    throw new Error(validation.message);
+  }
+
+  const discount = coupon.calculateDiscount(orderValue);
+
+  // Increment used count
+  coupon.usedCount += 1;
+  await coupon.save();
+
+  return {
+    discount,
+    couponId: coupon._id
+  };
+};
+
+// ✅ ADMIN: Create public coupon
+export const createCoupon = async (req, res) => {
+  try {
+    const couponData = req.body;
+
+    // Generate unique code if not provided
+    if (!couponData.code) {
+      couponData.code = `PROMO${Date.now()}`;
+    }
+
+    const coupon = await Coupon.create(couponData);
+
+    res.status(201).json({ 
+      success: true, 
+      coupon,
+      message: 'Tạo mã giảm giá thành công' 
+    });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Mã giảm giá đã tồn tại' 
+      });
+    }
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ✅ ADMIN: Get all coupons
+export const getAllCoupons = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const totalCoupons = await Coupon.countDocuments();
+    
+    const coupons = await Coupon.find()
+      .populate('userId', 'name email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.json({ 
+      success: true, 
+      coupons,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalCoupons / limit),
+        totalCoupons
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ✅ ADMIN: Update coupon
+export const updateCoupon = async (req, res) => {
+  try {
+    const { couponId } = req.params;
+    const updates = req.body;
+
+    const coupon = await Coupon.findByIdAndUpdate(
+      couponId, 
+      updates, 
+      { new: true, runValidators: true }
+    );
+
+    if (!coupon) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Không tìm thấy mã giảm giá' 
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      coupon,
+      message: 'Cập nhật mã giảm giá thành công' 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ✅ ADMIN: Delete coupon
+export const deleteCoupon = async (req, res) => {
+  try {
+    const { couponId } = req.params;
+
+    const coupon = await Coupon.findByIdAndDelete(couponId);
+
+    if (!coupon) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Không tìm thấy mã giảm giá' 
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Xóa mã giảm giá thành công' 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

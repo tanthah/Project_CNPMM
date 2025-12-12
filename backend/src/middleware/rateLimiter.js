@@ -2,11 +2,11 @@ import rateLimit from 'express-rate-limit';
 
 // Rate limiter chung cho tất cả các request
 export const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 phút
-  max: 100, // Giới hạn 100 requests mỗi windowMs
+  windowMs: 5 * 60 * 1000, // 5 phút
+  max: 500, // Giới hạn 500 requests mỗi windowMs
   message: {
     success: false,
-    message: 'Quá nhiều yêu cầu từ IP này, vui lòng thử lại sau 15 phút'
+    message: 'Quá nhiều yêu cầu từ IP này, vui lòng thử lại sau 5 phút'
   },
   standardHeaders: true,
   legacyHeaders: false,

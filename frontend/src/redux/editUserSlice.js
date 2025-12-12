@@ -1,5 +1,7 @@
+// frontend/src/redux/editUserSlice.js - UPDATED WITH AUTH SYNC
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from '../api/axios';
+import { updateUser as updateAuthUser } from './authSlice';
 
 // Async thunks
 export const fetchUserProfile = createAsyncThunk(
@@ -16,9 +18,13 @@ export const fetchUserProfile = createAsyncThunk(
 
 export const updateUserProfile = createAsyncThunk(
   'user/updateProfile',
-  async (userData, { rejectWithValue }) => {
+  async (userData, { rejectWithValue, dispatch }) => {
     try {
       const response = await axios.put('/user/profile', userData);
+      
+      // Sync updated user to authSlice
+      dispatch(updateAuthUser(response.data.data));
+      
       return response.data.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Không thể cập nhật thông tin');
@@ -28,13 +34,19 @@ export const updateUserProfile = createAsyncThunk(
 
 export const uploadAvatar = createAsyncThunk(
   'user/uploadAvatar',
-  async (formData, { rejectWithValue }) => {
+  async (formData, { rejectWithValue, dispatch }) => {
     try {
       const response = await axios.post('/user/upload-avatar', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       });
+      
+      // Sync updated avatar to authSlice
+      if (response.data.data) {
+        dispatch(updateAuthUser({ avatar: response.data.data.avatar }));
+      }
+      
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Không thể tải lên ảnh đại diện');

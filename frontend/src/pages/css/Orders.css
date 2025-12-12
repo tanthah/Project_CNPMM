@@ -1,0 +1,66 @@
+/* FORCE TABS TO STAY HORIZONTAL */
+.order-filters {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+
+  overflow-x: auto;
+  white-space: nowrap;
+
+  background: #cccdcd;
+  padding: 0.7rem !important;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+
+  gap: 0.1rem !important;
+}
+
+/* Make sure nav-item does not stack */
+.order-filters .nav-item {
+  display: inline-flex !important;
+  align-items: center;
+}
+
+/* Make nav-link inline so it aligns horizontally */
+.order-filters .nav-link {
+  display: inline-block !important;
+  white-space: nowrap;
+  color: #474748;
+  font-weight: 400 !important;
+  border-radius: 8px;
+  border-color: #fafafa !important;
+  transition: all 0.3s ease;
+  margin: 0 0.25rem;
+}
+
+.order-filters .nav-link.active {
+  background: #0d6efd;
+  color: white;
+}
+
+.order-filters .nav-link:hover {
+  background: rgba(13, 110, 253, 0.1);
+  color: #0d6efd;
+}
+
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  /* Filter scroll on mobile */
+  .order-filters {
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  /* Card header stack vertically */
+  .order-card .card-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 0.5rem;
+  }
+}
+
+/* For grid layout if needed */
+.orders-grid .order-card {
+  height: 100%;
+}

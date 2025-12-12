@@ -1,0 +1,40 @@
+/* frontend/src/pages/css/Checkout.css - FIXED */
+.checkout-page {
+    min-height: 60vh;
+}
+
+.address-item {
+    transition: all 0.3s ease;
+}
+
+.address-item:hover {
+    background-color: #f8f9fa !important;
+}
+
+.address-item.border-primary {
+    background-color: #e7f3ff !important;
+}
+
+
+.checkout-summary {
+    position: sticky;
+    top: 120px; /* Khoảng cách từ top khi sticky */
+    z-index: 10 !important; /* Thấp hơn header ) */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Đảm bảo header luôn ở trên cùng */
+/* .header-main {
+    position: sticky;
+    top: 0;
+    z-index: 1000; /* Cao hơn cart-summary *
+} */
+
+/* Responsive: Tắt sticky trên mobile */
+@media (max-width: 991px) {
+    .cart-summary {
+        position: relative;
+        top: auto;
+        margin-top: 1rem;
+    }
+}

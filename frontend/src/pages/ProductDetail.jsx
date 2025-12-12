@@ -1,49 +1,98 @@
+// frontend/src/pages/ProductDetail.jsx - COMPLETE ENHANCED VERSION
 import React, { useEffect, useState, useRef } from 'react'
-import { Container, Row, Col, Button, Badge, Spinner, Alert } from 'react-bootstrap'
+import { Container, Row, Col, Button, Badge, Spinner, Alert, Card, Nav, Form } from 'react-bootstrap'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import { fetchProductById } from '../redux/productSlice'
-import productApi from '../api/productApi'
+import { fetchProductById, clearCurrentProduct } from '../redux/productSlice'
+import { addToCart } from '../redux/cartSlice'
+import { addToWishlist, removeFromWishlist, checkWishlist } from '../redux/wishlistSlice'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Navigation, Pagination, Thumbs } from 'swiper/modules'
+import Header from '../components/Header'
+import Footer from '../components/Footer'
+import ProductReviewsSection from '../components/ProductReviewsSection'
+import ProductCommentsSection from '../components/ProductCommentsSection'
+import SimilarProductsSection from '../components/SimilarProductsSection'
+import productApi from '../api/productApi'
+import viewedProductApi from '../api/viewedProductApi'
 import 'swiper/css'
 import 'swiper/css/navigation'
 import 'swiper/css/pagination'
 import 'swiper/css/thumbs'
 import './css/ProductDetail.css'
+import { useNotification } from '../components/NotificationProvider'
 
 export default function ProductDetail() {
     const { id } = useParams()
-    const navigate = useNavigate()
-    const dispatch = useDispatch()
+  const navigate = useNavigate()
+  const dispatch = useDispatch()
+  const notify = useNotification()
+    const hasFetched = useRef(false)
 
     const { currentProduct, loading, error } = useSelector((s) => s.products)
+    const { token } = useSelector((s) => s.auth)
+    const { updating } = useSelector((s) => s.cart)
+    
     const [quantity, setQuantity] = useState(1)
     const [thumbsSwiper, setThumbsSwiper] = useState(null)
-    const viewIncrementedRef = useRef(false)
+    const [addCartSuccess, setAddCartSuccess] = useState(false)
+    const [productStats, setProductStats] = useState(null)
+    const [isInWishlist, setIsInWishlist] = useState(false)
+    const [wishlistLoading, setWishlistLoading] = useState(false)
+    const [activeTab, setActiveTab] = useState('reviews')
 
-    // Fetch product details
+    // Fetch product data
     useEffect(() => {
-        if (id) {
-            dispatch(fetchProductById(id))
+        if (!id) return;
+
+        if (!hasFetched.current) {
+            hasFetched.current = true;
+            dispatch(clearCurrentProduct());
+            dispatch(fetchProductById(id));
+            loadProductData();
         }
-    }, [id, dispatch])
 
-    // Increment view count (chỉ gọi 1 lần)
-    useEffect(() => {
-        if (id && currentProduct && currentProduct._id === id && !viewIncrementedRef.current) {
-            console.log('🔵 Tăng lượt xem cho sản phẩm:', id)
-            viewIncrementedRef.current = true
-            productApi.incrementView(id)
-                .then(() => console.log('✅ Đã tăng lượt xem'))
-                .catch(err => console.error('❌ Lỗi khi tăng lượt xem:', err))
+        return () => {
+            dispatch(clearCurrentProduct());
+        };
+    }, [id, dispatch]);
+
+    // Load additional data (stats, viewed products)
+    const loadProductData = async () => {
+        try {
+            // Load product stats
+            const statsRes = await productApi.getProductStats(id);
+            setProductStats(statsRes.data.stats);
+
+        } catch (err) {
+            console.error('Error loading product data:', err);
         }
-    }, [id, currentProduct])
+    };
 
-    // Reset view increment flag when product changes
+    // Track view and check wishlist status
     useEffect(() => {
-        viewIncrementedRef.current = false
-    }, [id])
+        if (currentProduct && token) {
+            // Track product view
+            viewedProductApi.trackView(currentProduct._id);
+            
+            // Check wishlist status
+            checkWishlistStatus();
+        }
+    }, [currentProduct, token]);
+
+    // Similar sections moved into dedicated components
+
+    // Check if product is in wishlist
+    const checkWishlistStatus = async () => {
+        if (!token || !currentProduct) return;
+        
+        try {
+            const result = await dispatch(checkWishlist(currentProduct._id)).unwrap();
+            setIsInWishlist(result.inWishlist);
+        } catch (err) {
+            console.error('Error checking wishlist:', err);
+        }
+    };
 
     const handleIncrease = () => {
         if (currentProduct && quantity < currentProduct.stock) {
@@ -57,44 +106,101 @@ export default function ProductDetail() {
         }
     }
 
-    const handleAddToCart = () => {
-        // TODO: Add to cart functionality
-        alert(`Thêm ${quantity} sản phẩm vào giỏ hàng!`)
+    const handleAddToCart = async () => {
+        if (!token) {
+            notify.info('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng')
+            navigate('/login')
+            return
+        }
+
+        try {
+            await dispatch(addToCart({ 
+                productId: currentProduct._id, 
+                quantity 
+            })).unwrap()
+            
+            setAddCartSuccess(true)
+            setTimeout(() => setAddCartSuccess(false), 3000)
+        } catch (err) {
+            notify.error(err || 'Không thể thêm vào giỏ hàng')
+        }
+    }
+
+    const handleBuyNow = async () => {
+        if (!token) {
+            notify.info('Vui lòng đăng nhập để mua hàng')
+            navigate('/login')
+            return
+        }
+
+        navigate('/checkout', {
+            state: {
+                buyNow: true,
+                product: {
+                    productId: currentProduct._id,
+                    quantity: quantity,
+                    productName: currentProduct.name,
+                    productImage: currentProduct.images[0],
+                    finalPrice: currentProduct.finalPrice || currentProduct.price,
+                    stock: currentProduct.stock || 0
+                }
+            }
+        })
+    }
+
+    // ✅ HANDLE WISHLIST TOGGLE - WITH RED COLOR INDICATOR
+    const handleWishlistToggle = async () => {
+        if (!token) {
+            notify.info('Vui lòng đăng nhập để sử dụng tính năng này')
+            navigate('/login')
+            return
+        }
+
+        setWishlistLoading(true)
+        try {
+            if (isInWishlist) {
+                await dispatch(removeFromWishlist(currentProduct._id)).unwrap()
+                setIsInWishlist(false)
+            } else {
+                await dispatch(addToWishlist(currentProduct._id)).unwrap()
+                setIsInWishlist(true)
+            }
+        } catch (err) {
+            notify.error(err || 'Có lỗi xảy ra')
+        } finally {
+            setWishlistLoading(false)
+        }
     }
 
     if (loading) {
         return (
-            <Container className="py-5 text-center">
-                <Spinner animation="border" variant="primary" />
-                <p className="mt-3 text-muted">Đang tải sản phẩm...</p>
-            </Container>
+            <>
+                <Header />
+                <Container className="py-5 text-center">
+                    <Spinner animation="border" variant="primary" style={{ width: '3rem', height: '3rem' }} />
+                    <p className="mt-3 text-muted">Đang tải sản phẩm...</p>
+                </Container>
+                <Footer />
+            </>
         )
     }
 
-    if (error) {
+    if (error || !currentProduct) {
         return (
-            <Container className="py-5">
-                <Alert variant="danger">
-                    <i className="bi bi-exclamation-triangle me-2"></i>
-                    {error}
-                </Alert>
-                <Button variant="primary" onClick={() => navigate('/dashboard')}>
-                    <i className="bi bi-house me-2"></i>
-                    Về trang chủ
-                </Button>
-            </Container>
-        )
-    }
-
-    if (!currentProduct) {
-        return (
-            <Container className="py-5 text-center">
-                <h3>Không tìm thấy sản phẩm</h3>
-                <Button variant="primary" onClick={() => navigate('/dashboard')} className="mt-3">
-                    <i className="bi bi-house me-2"></i>
-                    Về trang chủ
-                </Button>
-            </Container>
+            <>
+                <Header />
+                <Container className="py-5">
+                    <Alert variant="danger">
+                        <i className="bi bi-exclamation-triangle me-2"></i>
+                        {error || 'Không tìm thấy sản phẩm'}
+                    </Alert>
+                    <Button variant="primary" onClick={() => navigate('/')}>
+                        <i className="bi bi-house me-2"></i>
+                        Về trang chủ
+                    </Button>
+                </Container>
+                <Footer />
+            </>
         )
     }
 
@@ -106,26 +212,20 @@ export default function ProductDetail() {
 
     return (
         <div className="product-detail-page">
-            {/* Header */}
-            <div className="product-detail-header">
-                <Container>
-                    <Button
-                        variant="link"
-                        onClick={() => navigate('/dashboard')}
-                        className="back-button"
-                    >
-                        <i className="bi bi-arrow-left me-2"></i>
-                        Quay lại trang chủ
-                    </Button>
-                </Container>
-            </div>
+            <Header />
 
             <Container className="py-4">
+                {addCartSuccess && (
+                    <Alert variant="success" dismissible onClose={() => setAddCartSuccess(false)}>
+                        <i className="bi bi-check-circle me-2"></i>
+                        Đã thêm sản phẩm vào giỏ hàng!
+                    </Alert>
+                )}
+
                 <Row className="g-4">
-                    {/* Left Column - Images */}
+                    {/* Product Images */}
                     <Col lg={5}>
                         <div className="product-images-section">
-                            {/* Main Swiper */}
                             <Swiper
                                 modules={[Navigation, Pagination, Thumbs]}
                                 navigation
@@ -143,7 +243,6 @@ export default function ProductDetail() {
                                 ))}
                             </Swiper>
 
-                            {/* Thumbnails Swiper */}
                             {images.length > 1 && (
                                 <Swiper
                                     onSwiper={setThumbsSwiper}
@@ -164,13 +263,11 @@ export default function ProductDetail() {
                         </div>
                     </Col>
 
-                    {/* Right Column - Info */}
+                    {/* Product Info */}
                     <Col lg={7}>
                         <div className="product-info-section">
-                            {/* Product Name */}
                             <h1 className="product-title">{product.name}</h1>
 
-                            {/* Category */}
                             {product.categoryId && (
                                 <div className="mb-3">
                                     <Badge bg="secondary" className="category-badge">
@@ -180,7 +277,6 @@ export default function ProductDetail() {
                                 </div>
                             )}
 
-                            {/* Price Section */}
                             <div className="price-box">
                                 {product.discount > 0 && product.price && (
                                     <>
@@ -197,7 +293,42 @@ export default function ProductDetail() {
                                 </div>
                             </div>
 
-                            {/* Stock Status */}
+                            {/* ✅ PRODUCT STATS SECTION */}
+                            {productStats && (
+                                <div className="product-stats-detail mb-3">
+                                    <Row className="g-2">
+                                        <Col xs={6} md={3}>
+                                            <div className="stat-card text-center p-2 bg-light rounded">
+                                                <i className="bi bi-eye text-primary fs-4"></i>
+                                                <div className="fw-bold">{productStats.views}</div>
+                                                <small className="text-muted">Lượt xem</small>
+                                            </div>
+                                        </Col>
+                                        <Col xs={6} md={3}>
+                                            <div className="stat-card text-center p-2 bg-light rounded">
+                                                <i className="bi bi-cart-check text-success fs-4"></i>
+                                                <div className="fw-bold">{productStats.sold}</div>
+                                                <small className="text-muted">Đã bán</small>
+                                            </div>
+                                        </Col>
+                                        <Col xs={6} md={3}>
+                                            <div className="stat-card text-center p-2 bg-light rounded">
+                                                <i className="bi bi-people text-info fs-4"></i>
+                                                <div className="fw-bold">{productStats.uniqueBuyers}</div>
+                                                <small className="text-muted">Người mua</small>
+                                            </div>
+                                        </Col>
+                                        <Col xs={6} md={3}>
+                                            <div className="stat-card text-center p-2 bg-light rounded">
+                                                <i className="bi bi-chat-left-text text-warning fs-4"></i>
+                                                <div className="fw-bold">{productStats.uniqueReviewers}</div>
+                                                <small className="text-muted">Đánh giá</small>
+                                            </div>
+                                        </Col>
+                                    </Row>
+                                </div>
+                            )}
+
                             <div className="stock-section my-3">
                                 <strong className="me-2">Tình trạng:</strong>
                                 {isOutOfStock ? (
@@ -213,21 +344,9 @@ export default function ProductDetail() {
                                 )}
                             </div>
 
-                            {/* Stats */}
-                            <div className="product-stats-detail mb-4">
-                                <span className="me-4">
-                                    <i className="bi bi-eye text-primary me-2"></i>
-                                    <strong>{product.views || 0}</strong> lượt xem
-                                </span>
-                                <span>
-                                    <i className="bi bi-cart-check text-success me-2"></i>
-                                    Đã bán <strong>{product.soldCount || 0}</strong>
-                                </span>
-                            </div>
-
                             <hr />
 
-                            {/* Quantity Selector */}
+                            {/* Quantity Controls */}
                             <div className="quantity-section my-4">
                                 <strong className="me-3">Số lượng:</strong>
                                 <div className="quantity-controls">
@@ -235,7 +354,7 @@ export default function ProductDetail() {
                                         variant="outline-secondary"
                                         size="sm"
                                         onClick={handleDecrease}
-                                        disabled={quantity <= 1 || isOutOfStock}
+                                        disabled={quantity <= 1 || isOutOfStock || updating}
                                     >
                                         <i className="bi bi-dash"></i>
                                     </Button>
@@ -249,7 +368,7 @@ export default function ProductDetail() {
                                         variant="outline-secondary"
                                         size="sm"
                                         onClick={handleIncrease}
-                                        disabled={quantity >= product.stock || isOutOfStock}
+                                        disabled={quantity >= product.stock || isOutOfStock || updating}
                                     >
                                         <i className="bi bi-plus"></i>
                                     </Button>
@@ -257,27 +376,62 @@ export default function ProductDetail() {
                             </div>
 
                             {/* Action Buttons */}
-                            <div className="action-buttons d-flex gap-2">
+                            <div className="action-buttons d-flex gap-2 flex-wrap">
                                 <Button
-                                    variant="primary"
+                                    variant="outline-primary"
                                     size="lg"
                                     className="flex-grow-1"
                                     onClick={handleAddToCart}
-                                    disabled={isOutOfStock}
+                                    disabled={isOutOfStock || updating}
                                 >
-                                    <i className="bi bi-cart-plus me-2"></i>
-                                    {isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ'}
+                                    {updating ? (
+                                        <>
+                                            <Spinner animation="border" size="sm" className="me-2" />
+                                            Đang thêm...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <i className="bi bi-cart-plus me-2"></i>
+                                            Thêm vào giỏ
+                                        </>
+                                    )}
                                 </Button>
+                                
                                 <Button
-                                    variant="outline-danger"
+                                    variant="danger"
                                     size="lg"
+                                    className="flex-grow-1"
+                                    onClick={handleBuyNow}
                                     disabled={isOutOfStock}
                                 >
-                                    <i className="bi bi-heart"></i>
+                                    <i className="bi bi-lightning-fill me-2"></i>
+                                    Mua ngay
+                                </Button>
+                                
+                                {/* ✅ WISHLIST BUTTON - RED WHEN IN WISHLIST */}
+                                <Button
+                                    variant={isInWishlist ? "danger" : "outline-danger"}
+                                    size="lg"
+                                    onClick={handleWishlistToggle}
+                                    disabled={wishlistLoading}
+                                    style={{ minWidth: '50px' }}
+                                    title={isInWishlist ? "Xóa khỏi yêu thích" : "Thêm vào yêu thích"}
+                                >
+                                    {wishlistLoading ? (
+                                        <Spinner animation="border" size="sm" />
+                                    ) : (
+                                        <i className={`bi ${isInWishlist ? 'bi-heart-fill' : 'bi-heart'}`}></i>
+                                    )}
                                 </Button>
                             </div>
 
-                            {/* Description */}
+                            {product.brand && (
+                                <div className="brand-section mt-3">
+                                    <strong>Thương hiệu:</strong>
+                                    <span className="ms-2 text-primary">{product.brand}</span>
+                                </div>
+                            )}
+
                             {product.description && (
                                 <div className="description-section mt-4">
                                     <h5 className="fw-bold mb-3">Mô tả sản phẩm</h5>
@@ -285,17 +439,46 @@ export default function ProductDetail() {
                                 </div>
                             )}
 
-                            {/* Brand */}
-                            {product.brand && (
-                                <div className="brand-section mt-3">
-                                    <strong>Thương hiệu:</strong>
-                                    <span className="ms-2 text-primary">{product.brand}</span>
-                                </div>
-                            )}
+                            
                         </div>
                     </Col>
                 </Row>
+
+                <div className="mt-5">
+                    <Nav variant="pills" className="order-filters mb-4">
+                        <Nav.Item>
+                            <Nav.Link active={activeTab === 'reviews'} onClick={() => setActiveTab('reviews')}>Đánh giá</Nav.Link>
+                        </Nav.Item>
+                        <Nav.Item>
+                            <Nav.Link active={activeTab === 'comments'} onClick={() => setActiveTab('comments')}>Bình luận</Nav.Link>
+                        </Nav.Item>
+                        <Nav.Item>
+                            <Nav.Link active={activeTab === 'similar'} onClick={() => setActiveTab('similar')}>Sản phẩm tương tự</Nav.Link>
+                        </Nav.Item>
+                    </Nav>
+
+                    {activeTab === 'reviews' && (
+                        <> 
+                            {/* Review section is rendered below */}
+                        </>
+                    )}
+
+                    {activeTab === 'comments' && (
+                        <ProductCommentsSection productId={id} />
+                    )}
+
+                    {activeTab === 'similar' && (
+                        <SimilarProductsSection productId={id} />
+                    )}
+                </div>
+
+        {activeTab === 'reviews' && (
+            <ProductReviewsSection productId={id} />
+        )}
+
             </Container>
+
+            <Footer />
         </div>
     )
 }
