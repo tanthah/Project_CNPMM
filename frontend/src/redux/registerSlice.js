@@ -1,6 +1,7 @@
-// frontend/src/redux/registerSlice.js
+// frontend/src/redux/registerSlice.js - UPDATED WITH AUTH SYNC
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "../api/axios";
+import { updateUser as updateAuthUser } from "./authSlice";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -42,11 +43,11 @@ export const verifyRegisterOtp = createAsyncThunk(
 // Complete Registration (WITH AVATAR)
 export const completeRegistration = createAsyncThunk(
   "register/complete",
-  async (formData, { rejectWithValue, getState }) => {
+  async (formData, { rejectWithValue, getState, dispatch }) => {
     try {
       const { imageFile } = getState().register;
       
-      // Create FormData để gửi file
+      // Create FormData to send file
       const data = new FormData();
       
       // Append user info
@@ -61,7 +62,7 @@ export const completeRegistration = createAsyncThunk(
       if (formData.dateOfBirth) data.append('dateOfBirth', formData.dateOfBirth);
       if (formData.gender) data.append('gender', formData.gender);
       
-      // Append avatar nếu có
+      // Append avatar if exists
       if (imageFile) {
         data.append('avatar', imageFile);
       }
@@ -76,10 +77,16 @@ export const completeRegistration = createAsyncThunk(
         }
       );
       
-      // Lưu token và user info vào localStorage
+      // Save token and user info to localStorage and update authSlice
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+      if (response.data.user) {
+        const userData = response.data.user;
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        // Update authSlice with new user
+        dispatch(updateAuthUser(userData));
       }
       
       return response.data;

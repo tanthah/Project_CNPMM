@@ -7,8 +7,8 @@ import {
   validateLoginForm, 
   sanitizeInput,  
   validateEmail,
-  validatePassword } 
-  from '../utils/validation'
+  validatePassword 
+} from '../utils/validation'
 
 export default function Login() {
   const dispatch = useDispatch()
@@ -23,42 +23,47 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    // Clear previous errors
     setFormErrors({})
-    
-    // Sanitize inputs
+
     const sanitizedEmail = sanitizeInput(email)
     const sanitizedPassword = sanitizeInput(password)
-    
-    // Validate form
-    const emailError = validateEmail(sanitizedEmail);
+
+    const emailError = validateEmail(sanitizedEmail)
     if (emailError) {
-      setFormErrors({ email: emailError });
-      return;
+      setFormErrors({ email: emailError })
+      return
     }
-    const errors = validateLoginForm(sanitizedEmail, sanitizedPassword);
 
-    
-    const passwordRuleError = validatePassword(sanitizedPassword);
+    const errors = validateLoginForm(sanitizedEmail, sanitizedPassword)
+    const passwordRuleError = validatePassword(sanitizedPassword)
+
     if (passwordRuleError) {
-      setFormErrors(prev => ({ ...prev, password: passwordRuleError }));
-      return;
+      setFormErrors(prev => ({ ...prev, password: passwordRuleError }))
+      return
     }
 
-    
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors)
       return
     }
-    
+
     try {
       const res = await dispatch(login({ 
         email: sanitizedEmail, 
         password: sanitizedPassword 
       })).unwrap()
-      if (res?.token) navigate('/dashboard')
+
+      // ⭐ Điều hướng theo role
+      if (res?.token) {
+        if (res.user?.role === 'admin') {
+          navigate('/admin/dashboard')
+        } else {
+          navigate('/dashboard')
+        }
+      }
+
     } catch (err) {
-      // Error handled by slice
+      // handled in slice
     }
   }
 
@@ -158,6 +163,7 @@ export default function Login() {
                   {error}
                 </Alert>
               )}
+
               {token && (
                 <Alert variant="success" className="mt-3 mb-0">
                   <i className="bi bi-check-circle me-2"></i>

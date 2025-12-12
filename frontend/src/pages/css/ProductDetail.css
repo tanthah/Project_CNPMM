@@ -1,5 +1,8 @@
+/* frontend/src/pages/css/ProductDetail.css - ENHANCED */
 .product-detail-page {
     min-height: 100vh;
+    max-width: 1300px;
+    margin: 0 auto;
     background: #f8f9fa;
 }
 
@@ -130,13 +133,40 @@
     margin-top: 0.5rem;
 }
 
-.stock-section {
-    font-size: 1rem;
-}
-
+/* ✅ PRODUCT STATS CARDS */
 .product-stats-detail {
     font-size: 0.95rem;
-    color: #6c757d;
+}
+
+.stat-card {
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: #e9ecef;
+}
+
+.stat-card i {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.stat-card .fw-bold {
+    font-size: 1.5rem;
+    color: #2c3e50;
+}
+
+.stat-card small {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stock-section {
+    font-size: 1rem;
 }
 
 /* Quantity Controls */
@@ -182,6 +212,43 @@
 .action-buttons .btn {
     font-weight: 600;
     padding: 0.75rem 1.5rem;
+    transition: all 0.3s ease;
+}
+
+/* ✅ WISHLIST BUTTON STYLES */
+.action-buttons .btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+.action-buttons .btn-danger:hover {
+    background-color: #bb2d3b;
+    border-color: #b02a37;
+    transform: scale(1.05);
+}
+
+.action-buttons .btn-outline-danger {
+    color: #dc3545;
+    border-color: #dc3545;
+}
+
+.action-buttons .btn-outline-danger:hover {
+    background-color: #dc3545;
+    color: white;
+    transform: scale(1.05);
+}
+
+.action-buttons .btn i.bi-heart-fill {
+    animation: heartbeat 0.5s ease-in-out;
+}
+
+@keyframes heartbeat {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.2);
+    }
 }
 
 /* Description Section */
@@ -192,6 +259,25 @@
 
 .description-section h5 {
     color: #2c3e50;
+}
+
+/* ✅ SIMILAR & VIEWED PRODUCTS */
+.product-card-small {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.product-card-small:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.product-card-small img {
+    transition: transform 0.3s ease;
+}
+
+.product-card-small:hover img {
+    transform: scale(1.05);
 }
 
 /* Swiper Navigation Buttons */
@@ -228,10 +314,13 @@
     .product-info-section {
         margin-top: 1.5rem;
     }
+    
+    .stat-card .fw-bold {
+        font-size: 1.2rem;
+    }
 }
 
 @media (max-width: 576px) {
-
     .product-images-section,
     .product-info-section {
         padding: 1rem;
@@ -252,4 +341,17 @@
     .action-buttons .btn {
         width: 100%;
     }
+    
+    .product-stats-detail .row {
+        gap: 0.5rem;
+    }
+    
+    .stat-card {
+        padding: 1rem !important;
+    }
+    
+    .stat-card .fw-bold {
+        font-size: 1rem;
+    }
 }
+
