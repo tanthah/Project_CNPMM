@@ -1,9 +1,23 @@
+// backend/src/models/Review.js - ENHANCED
 import mongoose from "mongoose";
 
 const reviewSchema = new mongoose.Schema(
   {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+    userId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "User", 
+      required: true 
+    },
+    productId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Product", 
+      required: true 
+    },
+    orderId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Order", 
+      required: true 
+    },
 
     rating: {
       type: Number,
@@ -15,19 +29,52 @@ const reviewSchema = new mongoose.Schema(
     comment: {
       type: String,
       trim: true,
-      maxlength: [500, "Comment tối đa 500 ký tự"]
+      maxlength: [1000, "Comment tối đa 1000 ký tự"]
     },
 
-    images: [
-      {
-        type: String  // URL ảnh review
-      }
-    ]
+    images: [{
+      type: String  // URL ảnh review
+    }],
+
+    // Phản hồi từ shop
+    reply: {
+      content: String,
+      repliedAt: Date,
+      repliedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }
+    },
+
+    // Trạng thái
+    isVerifiedPurchase: { 
+      type: Boolean, 
+      default: true 
+    },
+    
+    // Helpful votes
+    helpfulCount: { 
+      type: Number, 
+      default: 0 
+    },
+    
+    // Hidden by admin
+    isHidden: { 
+      type: Boolean, 
+      default: false 
+    }
   },
   { timestamps: true }
 );
 
-// Ràng buộc: 1 user chỉ được review 1 product 1 lần
-reviewSchema.index({ userId: 1, productId: 1 }, { unique: true });
+// Index để tránh duplicate review
+reviewSchema.index({ userId: 1, productId: 1, orderId: 1 }, { unique: true });
+
+// Index để query nhanh
+reviewSchema.index({ productId: 1, createdAt: -1 });
+reviewSchema.index({ userId: 1, createdAt: -1 });
+
+// Method: Check if user can review this product
+reviewSchema.statics.canUserReview = async function(userId, productId, orderId) {
+  const existingReview = await this.findOne({ userId, productId, orderId });
+  return !existingReview;
+};
 
 export default mongoose.model("Review", reviewSchema);
