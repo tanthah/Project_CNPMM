@@ -1,0 +1,149 @@
+/* frontend/src/components/admin/css/MediaUpload.css */
+.media-upload {
+  width: 100%;
+}
+
+.upload-zone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  transition: all 0.3s ease;
+  background: #f8fafc;
+  margin-bottom: 1.5rem;
+}
+
+.upload-zone:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.upload-zone.drag-active {
+  border-color: #3b82f6;
+  background: #dbeafe;
+}
+
+.upload-label {
+  cursor: pointer;
+  display: block;
+}
+
+.upload-label i {
+  font-size: 3rem;
+  color: #64748b;
+  margin-bottom: 1rem;
+}
+
+.upload-label p {
+  font-size: 1.1rem;
+  color: #334155;
+  margin-bottom: 0.5rem;
+}
+
+.upload-label small {
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+/* Media Grid */
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.media-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.media-item:hover {
+  border-color: #3b82f6;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.media-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.media-actions {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.media-item:hover .media-actions {
+  opacity: 1;
+}
+
+.btn-move,
+.btn-remove {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-move {
+  background: rgba(59, 130, 246, 0.9);
+  color: white;
+}
+
+.btn-move:hover {
+  background: rgb(37, 99, 235);
+}
+
+.btn-remove {
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+}
+
+.btn-remove:hover {
+  background: rgb(220, 38, 38);
+}
+
+.badge-primary {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 0.5rem;
+  background: rgba(59, 130, 246, 0.9);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.uploading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .media-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  }
+}

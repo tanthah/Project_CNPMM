@@ -1,0 +1,409 @@
+/* frontend/src/pages/css/LoyaltyPoints.css */
+
+/* ========================================
+   LOYALTY POINTS PAGE STYLES
+   ======================================== */
+
+/* Page Container */
+.loyalty-points-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+/* Page Title */
+.loyalty-points-page h2 {
+  font-weight: 700;
+  color: #2d3748;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+}
+
+.loyalty-points-page h2 i {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ========================================
+   POINTS SUMMARY CARDS
+   ======================================== */
+
+/* Summary Card Wrapper */
+.loyalty-points-page .row > [class*='col-'] {
+  margin-bottom: 1rem;
+}
+
+/* Summary Cards */
+.loyalty-points-page .card {
+  border: none;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+}
+
+.loyalty-points-page .card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Primary Card (Available Points) */
+.loyalty-points-page .bg-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+}
+
+/* Success Card (Total Points) */
+.loyalty-points-page .bg-success {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
+}
+
+/* Warning Card (Coupons) */
+.loyalty-points-page .bg-warning {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+}
+
+/* Card Body */
+.loyalty-points-page .text-center.text-white .card-body {
+  padding: 2rem 1.5rem;
+}
+
+.loyalty-points-page .text-center.text-white h3 {
+  font-size: 3rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+  letter-spacing: -1px;
+}
+
+.loyalty-points-page .text-center.text-white small {
+  font-size: 1rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.95;
+}
+
+/* ========================================
+   COUPON CARDS
+   ======================================== */
+
+/* Coupon Section Header */
+.loyalty-points-page .card-header {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-bottom: 2px solid #dee2e6;
+  padding: 1.25rem 1.5rem;
+}
+
+.loyalty-points-page .card-header h5 {
+  font-weight: 700;
+  color: #2d3748;
+  margin: 0;
+}
+
+.loyalty-points-page .card-header i {
+  color: #667eea;
+  font-size: 1.2rem;
+  animation: rotate 3s linear infinite;
+}
+
+@keyframes rotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Individual Coupon Card */
+.loyalty-points-page .border-success {
+  border: 2px solid #38ef7d !important;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffffff 0%, #f0fff4 100%);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.loyalty-points-page .border-success::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(56, 239, 125, 0.1) 0%, transparent 70%);
+  animation: pulse 3s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.2); opacity: 0.8; }
+}
+
+.loyalty-points-page .border-success:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 16px rgba(56, 239, 125, 0.3);
+  border-color: #11998e !important;
+}
+
+/* Coupon Code */
+.loyalty-points-page .border-success h5 {
+  font-family: 'Courier New', monospace;
+  font-weight: 800;
+  color: #11998e;
+  letter-spacing: 2px;
+  font-size: 1.3rem;
+}
+
+/* Coupon Details */
+.loyalty-points-page .border-success p {
+  color: #2d3748;
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Expiry Date */
+.loyalty-points-page .border-success .text-muted {
+  font-size: 0.85rem;
+  color: #718096 !important;
+}
+
+/* Copy Button */
+.loyalty-points-page .btn-outline-primary {
+  border: 2px solid #667eea;
+  color: #667eea;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.loyalty-points-page .btn-outline-primary:hover {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #764ba2;
+  color: white;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* Empty State for Coupons */
+.loyalty-points-page .card-body .text-muted.text-center {
+  padding: 3rem 1rem;
+  font-size: 1.1rem;
+  color: #a0aec0 !important;
+}
+
+/* ========================================
+   POINTS HISTORY SECTION
+   ======================================== */
+
+/* History Card */
+.loyalty-points-page .card:last-child {
+  margin-bottom: 2rem;
+}
+
+/* History Item */
+.loyalty-points-page .border-bottom {
+  padding: 1rem 0;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.loyalty-points-page .border-bottom:hover {
+  background-color: #f7fafc;
+  border-radius: 8px;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+/* History Description */
+.loyalty-points-page .border-bottom strong {
+  color: #2d3748;
+  font-size: 1.05rem;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+/* History Timestamp */
+.loyalty-points-page .border-bottom .text-muted.small {
+  font-size: 0.85rem;
+  color: #a0aec0 !important;
+}
+
+/* Points Display */
+.loyalty-points-page .text-success {
+  color: #38ef7d !important;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.loyalty-points-page .text-danger {
+  color: #f5576c !important;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+/* Empty State for History */
+.loyalty-points-page .card-body > .text-muted.text-center {
+  padding: 3rem 1rem;
+  font-size: 1.1rem;
+  color: #a0aec0 !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.loyalty-points-page .card-body > .text-muted.text-center::before {
+  content: '📊';
+  font-size: 4rem;
+  display: block;
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
+/* Tablet */
+@media (max-width: 768px) {
+  .loyalty-points-page h2 {
+    font-size: 1.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .loyalty-points-page .text-center.text-white h3 {
+    font-size: 2.5rem;
+  }
+
+  .loyalty-points-page .text-center.text-white small {
+    font-size: 0.9rem;
+  }
+
+  .loyalty-points-page .border-success h5 {
+    font-size: 1.1rem;
+  }
+
+  .loyalty-points-page .card-header {
+    padding: 1rem 1.25rem;
+  }
+}
+
+/* Mobile */
+@media (max-width: 576px) {
+  .loyalty-points-page h2 {
+    font-size: 1.5rem;
+    text-align: center;
+  }
+
+  .loyalty-points-page .text-center.text-white .card-body {
+    padding: 1.5rem 1rem;
+  }
+
+  .loyalty-points-page .text-center.text-white h3 {
+    font-size: 2rem;
+  }
+
+  .loyalty-points-page .text-center.text-white small {
+    font-size: 0.85rem;
+  }
+
+  .loyalty-points-page .border-success {
+    margin-bottom: 1rem;
+  }
+
+  .loyalty-points-page .border-success .d-flex {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .loyalty-points-page .btn-outline-primary {
+    width: 100%;
+  }
+
+  .loyalty-points-page .border-bottom {
+    padding: 0.75rem 0;
+  }
+
+  .loyalty-points-page .border-bottom .d-flex {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 0.5rem;
+  }
+}
+
+/* ========================================
+   LOADING STATE
+   ======================================== */
+
+.loyalty-points-page .spinner-border {
+  width: 3rem;
+  height: 3rem;
+  border-width: 0.3rem;
+  color: #667eea;
+}
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+
+/* Fade In Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.loyalty-points-page .card {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.loyalty-points-page .card:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.loyalty-points-page .card:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loyalty-points-page .card:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* Icon Bounce */
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.loyalty-points-page h2 i:hover {
+  animation: bounce 0.6s ease-in-out;
+}
+
+/* ========================================
+   PRINT STYLES
+   ======================================== */
+
+@media print {
+  .loyalty-points-page {
+    background: white;
+  }
+
+  .loyalty-points-page .card {
+    box-shadow: none;
+    border: 1px solid #e2e8f0;
+  }
+
+  .loyalty-points-page .btn {
+    display: none;
+  }
+}

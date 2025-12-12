@@ -1,0 +1,135 @@
+// frontend/src/redux/editUserSlice.js - UPDATED WITH AUTH SYNC
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import axios from '../api/axios';
+import { updateUser as updateAuthUser } from './authSlice';
+
+// Async thunks
+export const fetchUserProfile = createAsyncThunk(
+  'user/fetchProfile',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axios.get('/user/profile');
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Không thể tải thông tin người dùng');
+    }
+  }
+);
+
+export const updateUserProfile = createAsyncThunk(
+  'user/updateProfile',
+  async (userData, { rejectWithValue, dispatch }) => {
+    try {
+      const response = await axios.put('/user/profile', userData);
+      
+      // Sync updated user to authSlice
+      dispatch(updateAuthUser(response.data.data));
+      
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Không thể cập nhật thông tin');
+    }
+  }
+);
+
+export const uploadAvatar = createAsyncThunk(
+  'user/uploadAvatar',
+  async (formData, { rejectWithValue, dispatch }) => {
+    try {
+      const response = await axios.post('/user/upload-avatar', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      // Sync updated avatar to authSlice
+      if (response.data.data) {
+        dispatch(updateAuthUser({ avatar: response.data.data.avatar }));
+      }
+      
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Không thể tải lên ảnh đại diện');
+    }
+  }
+);
+
+const initialState = {
+  user: null,
+  loading: false,
+  updating: false,
+  uploadingAvatar: false,
+  error: null,
+  success: false,
+  successMessage: ''
+};
+
+const userSlice = createSlice({
+  name: 'user',
+  initialState,
+  reducers: {
+    clearMessages: (state) => {
+      state.error = null;
+      state.success = false;
+      state.successMessage = '';
+    },
+    updateUserField: (state, action) => {
+      const { field, value } = action.payload;
+      if (state.user) {
+        state.user[field] = value;
+      }
+    }
+  },
+  extraReducers: (builder) => {
+    builder
+      // Fetch Profile
+      .addCase(fetchUserProfile.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchUserProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload;
+      })
+      .addCase(fetchUserProfile.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Update Profile
+      .addCase(updateUserProfile.pending, (state) => {
+        state.updating = true;
+        state.error = null;
+        state.success = false;
+      })
+      .addCase(updateUserProfile.fulfilled, (state, action) => {
+        state.updating = false;
+        state.user = action.payload;
+        state.success = true;
+        state.successMessage = 'Cập nhật thông tin thành công!';
+      })
+      .addCase(updateUserProfile.rejected, (state, action) => {
+        state.updating = false;
+        state.error = action.payload;
+      })
+      // Upload Avatar
+      .addCase(uploadAvatar.pending, (state) => {
+        state.uploadingAvatar = true;
+        state.error = null;
+      })
+      .addCase(uploadAvatar.fulfilled, (state, action) => {
+        state.uploadingAvatar = false;
+        if (state.user && action.payload.avatar) {
+          state.user.avatar = action.payload.avatar;
+        }
+        state.success = true;
+        state.successMessage = 'Cập nhật ảnh đại diện thành công!';
+      })
+      .addCase(uploadAvatar.rejected, (state, action) => {
+        state.uploadingAvatar = false;
+        state.error = action.payload;
+      });
+  }
+});
+
+export const { clearMessages, updateUserField } = userSlice.actions;
+export default userSlice.reducer;
