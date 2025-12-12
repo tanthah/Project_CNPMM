@@ -1,45 +1,161 @@
-// frontend/src/App.jsx - UPDATED VERSION
+// frontend/src/App.jsx - UPDATED WITH ADMIN ROUTES
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import './App.css'
-import Home from './pages/home.jsx'
+import ScrollToTop from "./components/ScrollToTop";
+
+// Public Pages
+import Home from './pages/Home.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
 import ReviewProfile from './pages/ReviewProfile.jsx'
 import EditProfile from './pages/EditProfile.jsx'
 import ProductDetail from './pages/ProductDetail.jsx'
+import Products from './pages/Products.jsx'
+import CategoryProducts from './pages/CategoryProducts.jsx'
 import About from './pages/About.jsx'
+import Cart from './pages/Cart.jsx'
+import Checkout from './pages/Checkout.jsx'
+import Orders from './pages/Orders.jsx'
+import OrderDetail from './pages/OrderDetail.jsx'
+import Reviews from './pages/Reviews'
+import Wishlist from './pages/Wishlist'
+import LoyaltyPoints from './pages/LoyaltyPoints'
+import ViewedProducts from './pages/ViewedProducts.jsx'
+import SearchResults from './pages/SearchResults.jsx'
+
+// ✅ ADMIN COMPONENTS
+import AdminLayout from './components/admin/AdminLayout'
+import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminProducts from './pages/admin/AdminProducts'
+import AdminCategories from './pages/admin/AdminCategories'
+import AdminOrders from './pages/admin/AdminOrders'
+
+// ✅ PROTECTED ROUTE COMPONENT
+function ProtectedRoute({ children, adminOnly = false }) {
+  const { token, user } = useSelector((s) => s.auth);
+  
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  if (adminOnly && user?.role !== 'admin') {
+    return <Navigate to="/" replace />;
+  }
+  
+  return children;
+}
 
 function App() {
-  const token = useSelector((s) => s.auth.token)
+  const { token, user } = useSelector((s) => s.auth)
+  const isAdmin = user?.role === 'admin'
 
   return (
-    <Routes>
-      {/* Public Routes */}
-      <Route path="/" element={<Home />} />
-      <Route path="/home" element={<Home />} />
-      <Route path="/dashboard" element={<Home />} />
-      <Route path="/about" element={<About />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/product/:id" element={<ProductDetail />} />
+    <>
+      <ScrollToTop />
+      <Routes>
+        {/* ========================================
+            PUBLIC ROUTES
+        ======================================== */}
+        <Route path="/" element={<Home />} />
+        <Route path="/home" element={<Home />} />
+        <Route path="/dashboard" element={<Home />} />
+        <Route path="/products" element={<Products />} />
+        <Route path="/category/:categoryId" element={<CategoryProducts />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/login" element={token ? <Navigate to="/" replace /> : <Login />} />
+        <Route path="/register" element={token ? <Navigate to="/" replace /> : <Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/product/:id" element={<ProductDetail />} />
+        <Route path="/search" element={<SearchResults />} />
 
-      {/* Protected Routes */}
-      <Route 
-        path="/review-profile" 
-        element={token ? <ReviewProfile /> : <Navigate to="/login" replace />} 
-      />
-      <Route 
-        path="/edit-profile" 
-        element={token ? <EditProfile /> : <Navigate to="/login" replace />} 
-      />
+        {/* ========================================
+            PROTECTED CUSTOMER ROUTES
+        ======================================== */}
+        <Route path="/cart" element={
+          <ProtectedRoute>
+            <Cart />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/checkout" element={
+          <ProtectedRoute>
+            <Checkout />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/orders" element={
+          <ProtectedRoute>
+            <Orders />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/orders/:orderId" element={
+          <ProtectedRoute>
+            <OrderDetail />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/review-profile" element={
+          <ProtectedRoute>
+            <ReviewProfile />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/edit-profile" element={
+          <ProtectedRoute>
+            <EditProfile />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/reviews" element={
+          <ProtectedRoute>
+            <Reviews />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/wishlist" element={
+          <ProtectedRoute>
+            <Wishlist />
+          </ProtectedRoute>
+        } />
 
-      {/* Fallback Route */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="/viewed" element={
+          <ProtectedRoute>
+            <ViewedProducts />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/loyalty" element={
+          <ProtectedRoute>
+            <LoyaltyPoints />
+          </ProtectedRoute>
+        } />
+
+        {/* ========================================
+            ADMIN ROUTES
+        ======================================== */}
+        <Route path="/admin" element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="products" element={<AdminProducts />} />
+          <Route path="categories" element={<AdminCategories />} />
+          <Route path="orders" element={<AdminOrders />} />
+          {/* Add more admin routes here */}
+        </Route>
+
+        {/* ========================================
+            FALLBACK ROUTE
+        ======================================== */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   )
 }
 
