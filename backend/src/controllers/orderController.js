@@ -1,8 +1,12 @@
+
 // backend/src/controllers/orderController.js - ENHANCED
 import Order from '../models/Order.js';
 import Cart from '../models/Cart.js';
 import Product from '../models/Product.js';
 import Address from '../models/Address.js';
+
+import * as notificationService from '../services/notificationService.js';
+import { getIO } from '../sockets/socketHandler.js'; // Import getIO
 
 // ✅ CREATE ORDER - Updated với status history
 export const createOrder = async (req, res) => {
@@ -12,9 +16,9 @@ export const createOrder = async (req, res) => {
 
         const address = await Address.findOne({ _id: addressId, userId });
         if (!address) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Không tìm thấy địa chỉ giao hàng' 
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy địa chỉ giao hàng'
             });
         }
 
@@ -37,6 +41,13 @@ export const createOrder = async (req, res) => {
                 const priceToUse = product.finalPrice || product.price;
                 orderItems.push({ productId: product._id, quantity: qty, price: priceToUse });
                 totalProductsPrice += priceToUse * qty;
+
+                // Real-time stock update
+                try {
+                    getIO().emit('product_updated', product);
+                } catch (e) {
+                    console.error('Socket emit error:', e);
+                }
             }
         } else {
             const cart = await Cart.findOne({ userId }).populate('items.productId');
@@ -56,6 +67,13 @@ export const createOrder = async (req, res) => {
                 await product.save();
                 orderItems.push({ productId: product._id, quantity: item.quantity, price: item.finalPrice });
                 totalProductsPrice += item.finalPrice * item.quantity;
+
+                // Real-time stock update
+                try {
+                    getIO().emit('product_updated', product);
+                } catch (e) {
+                    console.error('Socket emit error:', e);
+                }
             }
             cart.items = [];
             cart.totalQuantity = 0;
@@ -63,7 +81,7 @@ export const createOrder = async (req, res) => {
             await cart.save();
         }
 
-        const orderCode = `ORD${Date.now()}${Math.floor(Math.random() * 1000)}`;
+        const orderCode = `ORD${Date.now()}${Math.floor(Math.random() * 1000)} `;
         const totalPrice = totalProductsPrice + shippingFee;
 
         const order = await Order.create({
@@ -81,10 +99,10 @@ export const createOrder = async (req, res) => {
 
         await order.populate(['items.productId', 'addressId']);
 
-        res.status(201).json({ 
-            success: true, 
+        res.status(201).json({
+            success: true,
             order,
-            message: 'Đặt hàng thành công! Đơn hàng sẽ được xác nhận trong 30 phút.' 
+            message: 'Đặt hàng thành công! Đơn hàng sẽ được xác nhận trong 30 phút.'
         });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
@@ -96,18 +114,18 @@ export const getUserOrders = async (req, res) => {
     try {
         const userId = req.user.id;
         const { status } = req.query;
-        
+
         const query = { userId };
         if (status) {
             query.status = status;
         }
-        
+
         const orders = await Order.find(query)
             .populate(['items.productId', 'addressId'])
             .sort({ createdAt: -1 });
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             orders,
             count: orders.length
         });
@@ -126,14 +144,14 @@ export const getOrderDetail = async (req, res) => {
             .populate(['items.productId', 'addressId']);
 
         if (!order) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Không tìm thấy đơn hàng' 
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy đơn hàng'
             });
         }
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             order,
             canDirectCancel: order.canDirectCancel,
             canRequestCancel: order.canRequestCancel
@@ -152,24 +170,24 @@ export const cancelOrder = async (req, res) => {
 
         const order = await Order.findOne({ _id: orderId, userId });
         if (!order) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Không tìm thấy đơn hàng' 
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy đơn hàng'
             });
         }
 
         // Check if already cancelled or completed
         if (order.status === 'cancelled') {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Đơn hàng đã được hủy trước đó' 
+            return res.status(400).json({
+                success: false,
+                message: 'Đơn hàng đã được hủy trước đó'
             });
         }
 
         if (order.status === 'completed') {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Không thể hủy đơn hàng đã hoàn thành' 
+            return res.status(400).json({
+                success: false,
+                message: 'Không thể hủy đơn hàng đã hoàn thành'
             });
         }
 
@@ -182,47 +200,54 @@ export const cancelOrder = async (req, res) => {
                     product.stock += item.quantity;
                     product.sold -= item.quantity;
                     await product.save();
+
+                    // Real-time stock update
+                    try {
+                        getIO().emit('product_updated', product);
+                    } catch (e) {
+                        console.error('Socket emit error:', e);
+                    }
                 }
             }
 
             await order.updateStatus(
-                'cancelled', 
-                cancelReason || 'Khách hàng hủy đơn trong 30 phút', 
+                'cancelled',
+                cancelReason || 'Khách hàng hủy đơn trong 30 phút',
                 'customer'
             );
-            
+
             order.cancelReason = cancelReason || 'Khách hàng hủy đơn';
 
-            return res.json({ 
-                success: true, 
-                order, 
-                message: 'Đã hủy đơn hàng thành công' 
+            return res.json({
+                success: true,
+                order,
+                message: 'Đã hủy đơn hàng thành công'
             });
         }
 
         // If preparing - Create cancel request
         if (order.status === 'preparing') {
             await order.updateStatus(
-                'cancel_requested', 
-                cancelReason || 'Khách hàng yêu cầu hủy đơn', 
+                'cancel_requested',
+                cancelReason || 'Khách hàng yêu cầu hủy đơn',
                 'customer'
             );
-            
+
             order.cancelReason = cancelReason || 'Khách hàng yêu cầu hủy đơn';
             order.cancellationInfo.requestedBy = userId;
             await order.save();
 
-            return res.json({ 
-                success: true, 
+            return res.json({
+                success: true,
                 order,
-                message: 'Đã gửi yêu cầu hủy đơn. Shop sẽ xem xét và phản hồi sớm nhất.' 
+                message: 'Đã gửi yêu cầu hủy đơn. Shop sẽ xem xét và phản hồi sớm nhất.'
             });
         }
 
         // Cannot cancel
-        return res.status(400).json({ 
-            success: false, 
-            message: 'Không thể hủy đơn hàng ở trạng thái hiện tại' 
+        return res.status(400).json({
+            success: false,
+            message: 'Không thể hủy đơn hàng ở trạng thái hiện tại'
         });
 
     } catch (err) {
@@ -238,14 +263,14 @@ export const getOrderStatusHistory = async (req, res) => {
 
         const order = await Order.findOne({ _id: orderId, userId });
         if (!order) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Không tìm thấy đơn hàng' 
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy đơn hàng'
             });
         }
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             statusHistory: order.statusHistory,
             currentStatus: order.status
         });
@@ -262,18 +287,56 @@ export const updateOrderStatus = async (req, res) => {
 
         const order = await Order.findById(orderId);
         if (!order) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Không tìm thấy đơn hàng' 
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy đơn hàng'
             });
         }
 
         await order.updateStatus(status, note, 'admin');
 
-        res.json({ 
-            success: true, 
+        // ✅ SEND NOTIFICATION TO USER
+        const notificationMap = {
+            'confirmed': {
+                title: 'Đơn hàng đã được xác nhận',
+                message: `Đơn hàng #${order.orderCode} đã được xác nhận và sẽ được chuẩn bị trong thời gian sớm nhất.`,
+                type: 'order_confirmed'
+            },
+            'shipping': {
+                title: 'Đơn hàng đang được giao',
+                message: `Đơn hàng #${order.orderCode} của bạn đang trên đường giao đến.Vui lòng để ý điện thoại.`,
+                type: 'order_shipping'
+            },
+            'completed': {
+                title: 'Đơn hàng đã giao thành công',
+                message: `Đơn hàng #${order.orderCode} đã được giao thành công.Cảm ơn bạn đã mua hàng! Hãy đánh giá sản phẩm để nhận điểm thưởng nhé.`,
+                type: 'order_completed'
+            },
+            'cancelled': {
+                title: 'Đơn hàng đã bị hủy',
+                message: `Đơn hàng #${order.orderCode} đã bị hủy.${note || ''} `,
+                type: 'order_cancelled'
+            }
+        };
+
+        // Nếu status có trong map, tạo notification
+        if (notificationMap[status]) {
+            const { title, message, type } = notificationMap[status];
+            await notificationService.createNotification({
+                userId: order.userId,
+                type,
+                title,
+                message,
+                link: `/ orders / ${order._id} `,
+                referenceId: order._id,
+                referenceType: 'Order'
+            });
+        }
+
+        res.json({
+            success: true,
             order,
-            message: 'Cập nhật trạng thái đơn hàng thành công' 
+            message: 'Cập nhật trạng thái đơn hàng thành công'
         });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
@@ -288,16 +351,16 @@ export const handleCancelRequest = async (req, res) => {
 
         const order = await Order.findById(orderId);
         if (!order) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Không tìm thấy đơn hàng' 
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy đơn hàng'
             });
         }
 
         if (order.status !== 'cancel_requested') {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Đơn hàng không có yêu cầu hủy' 
+            return res.status(400).json({
+                success: false,
+                message: 'Đơn hàng không có yêu cầu hủy'
             });
         }
 
@@ -309,37 +372,44 @@ export const handleCancelRequest = async (req, res) => {
                     product.stock += item.quantity;
                     product.sold -= item.quantity;
                     await product.save();
+
+                    // Real-time stock update
+                    try {
+                        getIO().emit('product_updated', product);
+                    } catch (e) {
+                        console.error('Socket emit error:', e);
+                    }
                 }
             }
 
             await order.updateStatus('cancelled', 'Yêu cầu hủy được chấp thuận', 'admin');
             order.cancellationInfo.approvedBy = req.user.id;
 
-            return res.json({ 
-                success: true, 
+            return res.json({
+                success: true,
                 order,
-                message: 'Đã chấp thuận yêu cầu hủy đơn' 
+                message: 'Đã chấp thuận yêu cầu hủy đơn'
             });
         }
 
         if (action === 'reject') {
             await order.updateStatus(
-                'preparing', 
-                `Từ chối yêu cầu hủy: ${rejectionReason}`, 
+                'preparing',
+                `Từ chối yêu cầu hủy: ${rejectionReason} `,
                 'admin'
             );
             order.cancellationInfo.rejectionReason = rejectionReason;
 
-            return res.json({ 
-                success: true, 
+            return res.json({
+                success: true,
                 order,
-                message: 'Đã từ chối yêu cầu hủy đơn' 
+                message: 'Đã từ chối yêu cầu hủy đơn'
             });
         }
 
-        return res.status(400).json({ 
-            success: false, 
-            message: 'Action không hợp lệ' 
+        return res.status(400).json({
+            success: false,
+            message: 'Action không hợp lệ'
         });
 
     } catch (err) {

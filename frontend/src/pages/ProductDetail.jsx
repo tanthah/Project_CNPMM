@@ -1,7 +1,8 @@
 // frontend/src/pages/ProductDetail.jsx - COMPLETE ENHANCED VERSION
 import React, { useEffect, useState, useRef } from 'react'
-import { Container, Row, Col, Button, Badge, Spinner, Alert, Card, Nav, Form } from 'react-bootstrap'
-import { useParams, useNavigate } from 'react-router-dom'
+import { Container, Row, Col, Button, Badge, Spinner, Alert, Card, Nav, Form, Breadcrumb, ProgressBar } from 'react-bootstrap'
+import { LinkContainer } from 'react-router-bootstrap'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchProductById, clearCurrentProduct } from '../redux/productSlice'
 import { addToCart } from '../redux/cartSlice'
@@ -21,21 +22,22 @@ import 'swiper/css/pagination'
 import 'swiper/css/thumbs'
 import './css/ProductDetail.css'
 import { useNotification } from '../components/NotificationProvider'
+import { useSocket } from '../contexts/SocketContext'
 
 export default function ProductDetail() {
     const { id } = useParams()
-  const navigate = useNavigate()
-  const dispatch = useDispatch()
-  const notify = useNotification()
+    const navigate = useNavigate()
+    const dispatch = useDispatch()
+    const notify = useNotification()
+    const { socket } = useSocket()
     const hasFetched = useRef(false)
 
     const { currentProduct, loading, error } = useSelector((s) => s.products)
     const { token } = useSelector((s) => s.auth)
     const { updating } = useSelector((s) => s.cart)
-    
+
     const [quantity, setQuantity] = useState(1)
     const [thumbsSwiper, setThumbsSwiper] = useState(null)
-    const [addCartSuccess, setAddCartSuccess] = useState(false)
     const [productStats, setProductStats] = useState(null)
     const [isInWishlist, setIsInWishlist] = useState(false)
     const [wishlistLoading, setWishlistLoading] = useState(false)
@@ -74,18 +76,36 @@ export default function ProductDetail() {
         if (currentProduct && token) {
             // Track product view
             viewedProductApi.trackView(currentProduct._id);
-            
+
             // Check wishlist status
             checkWishlistStatus();
         }
     }, [currentProduct, token]);
+
+    // ✅ Real-time Stock Update
+    useEffect(() => {
+        if (!socket || !id) return;
+
+        const handleUpdate = (updatedProduct) => {
+            if (updatedProduct._id === id) {
+                // Dispatch action to update product in store without full refetch if possible
+                // For now, we simple refetch or update local state if we had it.
+                // Since we rely on Redux 'currentProduct', asking to refetch is safest
+                dispatch(fetchProductById(id));
+                notify.info('Thông tin sản phẩm vừa được cập nhật');
+            }
+        };
+
+        socket.on('product_updated', handleUpdate);
+        return () => socket.off('product_updated', handleUpdate);
+    }, [socket, id, dispatch, notify]);
 
     // Similar sections moved into dedicated components
 
     // Check if product is in wishlist
     const checkWishlistStatus = async () => {
         if (!token || !currentProduct) return;
-        
+
         try {
             const result = await dispatch(checkWishlist(currentProduct._id)).unwrap();
             setIsInWishlist(result.inWishlist);
@@ -114,13 +134,12 @@ export default function ProductDetail() {
         }
 
         try {
-            await dispatch(addToCart({ 
-                productId: currentProduct._id, 
-                quantity 
+            await dispatch(addToCart({
+                productId: currentProduct._id,
+                quantity
             })).unwrap()
-            
-            setAddCartSuccess(true)
-            setTimeout(() => setAddCartSuccess(false), 3000)
+
+            notify.success(`Đã thêm ${quantity} ${currentProduct.name} vào giỏ hàng`);
         } catch (err) {
             notify.error(err || 'Không thể thêm vào giỏ hàng')
         }
@@ -215,12 +234,21 @@ export default function ProductDetail() {
             <Header />
 
             <Container className="py-4">
-                {addCartSuccess && (
-                    <Alert variant="success" dismissible onClose={() => setAddCartSuccess(false)}>
-                        <i className="bi bi-check-circle me-2"></i>
-                        Đã thêm sản phẩm vào giỏ hàng!
-                    </Alert>
-                )}
+                {/* 🍞 Breadcrumb Navigation */}
+                <Breadcrumb className="mb-4 product-breadcrumb">
+                    <LinkContainer to="/">
+                        <Breadcrumb.Item>Trang chủ</Breadcrumb.Item>
+                    </LinkContainer>
+                    <LinkContainer to="/products">
+                        <Breadcrumb.Item>Sản phẩm</Breadcrumb.Item>
+                    </LinkContainer>
+                    {product.categoryId && (
+                        <LinkContainer to={`/category/${product.categoryId._id}`}>
+                            <Breadcrumb.Item>{product.categoryId.name}</Breadcrumb.Item>
+                        </LinkContainer>
+                    )}
+                    <Breadcrumb.Item active>{product.name}</Breadcrumb.Item>
+                </Breadcrumb>
 
                 <Row className="g-4">
                     {/* Product Images */}
@@ -344,6 +372,22 @@ export default function ProductDetail() {
                                 )}
                             </div>
 
+                            {/* Stock Progress Bar */}
+                            {!isOutOfStock && product.stock > 0 && (
+                                <div className="stock-progress mb-4">
+                                    <ProgressBar
+                                        now={((product.sold || 0) / ((product.sold || 0) + product.stock) * 100)}
+                                        variant="danger"
+                                        style={{ height: '8px', borderRadius: '4px' }}
+                                    />
+                                    <div className="d-flex justify-content-between mt-1">
+                                        <small className="text-muted text-uppercase" style={{ fontSize: '0.75rem' }}>Đã bán: {product.sold || 0}</small>
+                                        <small className="text-muted text-uppercase" style={{ fontSize: '0.75rem' }}>Tổng cộng: {(product.sold || 0) + product.stock}</small>
+                                    </div>
+                                </div>
+                            )}
+
+
                             <hr />
 
                             {/* Quantity Controls */}
@@ -396,7 +440,7 @@ export default function ProductDetail() {
                                         </>
                                     )}
                                 </Button>
-                                
+
                                 <Button
                                     variant="danger"
                                     size="lg"
@@ -407,7 +451,7 @@ export default function ProductDetail() {
                                     <i className="bi bi-lightning-fill me-2"></i>
                                     Mua ngay
                                 </Button>
-                                
+
                                 {/* ✅ WISHLIST BUTTON - RED WHEN IN WISHLIST */}
                                 <Button
                                     variant={isInWishlist ? "danger" : "outline-danger"}
@@ -439,7 +483,7 @@ export default function ProductDetail() {
                                 </div>
                             )}
 
-                            
+
                         </div>
                     </Col>
                 </Row>
@@ -458,7 +502,7 @@ export default function ProductDetail() {
                     </Nav>
 
                     {activeTab === 'reviews' && (
-                        <> 
+                        <>
                             {/* Review section is rendered below */}
                         </>
                     )}
@@ -472,13 +516,13 @@ export default function ProductDetail() {
                     )}
                 </div>
 
-        {activeTab === 'reviews' && (
-            <ProductReviewsSection productId={id} />
-        )}
+                {activeTab === 'reviews' && (
+                    <ProductReviewsSection productId={id} />
+                )}
 
             </Container>
 
             <Footer />
-        </div>
+        </div >
     )
 }

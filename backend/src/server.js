@@ -1,6 +1,8 @@
-// backend/server.js - UPDATED WITH NEW ROUTES
+// backend/server.js - UPDATED WITH WEBSOCKET
 import 'dotenv/config'
 import express from 'express'
+import { createServer } from 'http'
+import { Server } from 'socket.io'
 import cors from 'cors'
 import connectDB from './config/db.js'
 
@@ -21,6 +23,8 @@ import viewedProductRoutes from './routes/viewedProductRoutes.js'
 import loyaltyRoutes from './routes/loyaltyRoutes.js'
 import couponRoutes from './routes/couponRoutes.js'
 import commentRoutes from './routes/commentRoutes.js'
+import notificationRoutes from './routes/notificationRoutes.js'
+import faqRoutes from './routes/faqRoutes.js'
 
 // Import security middlewares
 import {
@@ -35,8 +39,24 @@ import { startOrderAutoConfirm } from './utils/orderCronJobs.js'
 // Import admin routes
 import adminRoutes from './routes/admin/adminRoutes.js'
 
+// Import socket handler
+import { initializeSocket } from './sockets/socketHandler.js'
+
 const app = express()
+const httpServer = createServer(app)
 const PORT = process.env.PORT || 4000
+
+// Initialize Socket.IO
+const io = new Server(httpServer, {
+  cors: {
+    origin: ['http://localhost:5173', 'http://localhost:4173'],
+    credentials: true,
+    methods: ['GET', 'POST']
+  }
+})
+
+// Initialize socket handlers
+initializeSocket(io)
 
 // CORS
 app.use(cors({
@@ -84,7 +104,8 @@ app.use('/api/viewed', viewedProductRoutes)
 app.use('/api/loyalty', loyaltyRoutes)
 app.use('/api/coupons', couponRoutes)
 app.use('/api/comments', commentRoutes)
-
+app.use('/api/notifications', notificationRoutes)
+app.use('/api/faqs', faqRoutes)
 
 // Add this line with other routes:
 app.use('/api/admin', adminRoutes)
@@ -146,14 +167,16 @@ app.use((err, req, res, next) => {
   })
 })
 
-// Start Server
-app.listen(PORT, () => {
+// Start Server with WebSocket
+httpServer.listen(PORT, () => {
   console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`)
   console.log(`🔒 Security middlewares đã được kích hoạt`)
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`)
   console.log(`🌐 CORS enabled for: http://localhost:5173`)
   console.log(`⏰ Cron jobs đã được kích hoạt`)
   console.log(`✅ New features: Reviews, Wishlist, Loyalty Points, Coupons`)
+  console.log(`🔔 WebSocket: Notifications enabled`)
+  console.log(`💬 FAQ Chatbot ready`)
 })
 
 export default app
