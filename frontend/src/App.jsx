@@ -1,9 +1,12 @@
-// frontend/src/App.jsx - UPDATED WITH ADMIN ROUTES
+// frontend/src/App.jsx - UPDATED WITH NOTIFICATIONS & CHATBOT
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import './App.css'
 import ScrollToTop from "./components/ScrollToTop";
+import { SocketProvider } from './contexts/SocketContext';
+import ChatWidget from './components/ChatWidget';
+import ToastNotification from './components/ToastNotification';
 
 // Public Pages
 import Home from './pages/Home.jsx'
@@ -36,15 +39,15 @@ import AdminOrders from './pages/admin/AdminOrders'
 // ✅ PROTECTED ROUTE COMPONENT
 function ProtectedRoute({ children, adminOnly = false }) {
   const { token, user } = useSelector((s) => s.auth);
-  
+
   if (!token) {
     return <Navigate to="/login" replace />;
   }
-  
+
   if (adminOnly && user?.role !== 'admin') {
     return <Navigate to="/" replace />;
   }
-  
+
   return children;
 }
 
@@ -53,109 +56,117 @@ function App() {
   const isAdmin = user?.role === 'admin'
 
   return (
-    <>
-      <ScrollToTop />
-      <Routes>
-        {/* ========================================
-            PUBLIC ROUTES
-        ======================================== */}
-        <Route path="/" element={<Home />} />
-        <Route path="/home" element={<Home />} />
-        <Route path="/dashboard" element={<Home />} />
-        <Route path="/products" element={<Products />} />
-        <Route path="/category/:categoryId" element={<CategoryProducts />} />
-        <Route path="/about" element={<About />} />
-        <Route path="/login" element={token ? <Navigate to="/" replace /> : <Login />} />
-        <Route path="/register" element={token ? <Navigate to="/" replace /> : <Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/product/:id" element={<ProductDetail />} />
-        <Route path="/search" element={<SearchResults />} />
+    <SocketProvider>
+      <>
+        <ScrollToTop />
+        <Routes>
+          {/* ========================================
+              PUBLIC ROUTES
+          ======================================== */}
+          <Route path="/" element={<Home />} />
+          <Route path="/home" element={<Home />} />
+          <Route path="/dashboard" element={<Home />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/category/:categoryId" element={<CategoryProducts />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/login" element={token ? <Navigate to="/" replace /> : <Login />} />
+          <Route path="/register" element={token ? <Navigate to="/" replace /> : <Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/search" element={<SearchResults />} />
 
-        {/* ========================================
-            PROTECTED CUSTOMER ROUTES
-        ======================================== */}
-        <Route path="/cart" element={
-          <ProtectedRoute>
-            <Cart />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/checkout" element={
-          <ProtectedRoute>
-            <Checkout />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/orders" element={
-          <ProtectedRoute>
-            <Orders />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/orders/:orderId" element={
-          <ProtectedRoute>
-            <OrderDetail />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/review-profile" element={
-          <ProtectedRoute>
-            <ReviewProfile />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/edit-profile" element={
-          <ProtectedRoute>
-            <EditProfile />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/reviews" element={
-          <ProtectedRoute>
-            <Reviews />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/wishlist" element={
-          <ProtectedRoute>
-            <Wishlist />
-          </ProtectedRoute>
-        } />
+          {/* ========================================
+              PROTECTED CUSTOMER ROUTES
+          ======================================== */}
+          <Route path="/cart" element={
+            <ProtectedRoute>
+              <Cart />
+            </ProtectedRoute>
+          } />
 
-        <Route path="/viewed" element={
-          <ProtectedRoute>
-            <ViewedProducts />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/loyalty" element={
-          <ProtectedRoute>
-            <LoyaltyPoints />
-          </ProtectedRoute>
-        } />
+          <Route path="/checkout" element={
+            <ProtectedRoute>
+              <Checkout />
+            </ProtectedRoute>
+          } />
 
-        {/* ========================================
-            ADMIN ROUTES
-        ======================================== */}
-        <Route path="/admin" element={
-          <ProtectedRoute adminOnly={true}>
-            <AdminLayout />
-          </ProtectedRoute>
-        }>
-          <Route index element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="products" element={<AdminProducts />} />
-          <Route path="categories" element={<AdminCategories />} />
-          <Route path="orders" element={<AdminOrders />} />
-          {/* Add more admin routes here */}
-        </Route>
+          <Route path="/orders" element={
+            <ProtectedRoute>
+              <Orders />
+            </ProtectedRoute>
+          } />
 
-        {/* ========================================
-            FALLBACK ROUTE
-        ======================================== */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </>
+          <Route path="/orders/:orderId" element={
+            <ProtectedRoute>
+              <OrderDetail />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/review-profile" element={
+            <ProtectedRoute>
+              <ReviewProfile />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/edit-profile" element={
+            <ProtectedRoute>
+              <EditProfile />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/reviews" element={
+            <ProtectedRoute>
+              <Reviews />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/wishlist" element={
+            <ProtectedRoute>
+              <Wishlist />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/viewed" element={
+            <ProtectedRoute>
+              <ViewedProducts />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/loyalty" element={
+            <ProtectedRoute>
+              <LoyaltyPoints />
+            </ProtectedRoute>
+          } />
+
+          {/* ========================================
+              ADMIN ROUTES
+          ======================================== */}
+          <Route path="/admin" element={
+            <ProtectedRoute adminOnly={true}>
+              <AdminLayout />
+            </ProtectedRoute>
+          }>
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="products" element={<AdminProducts />} />
+            <Route path="categories" element={<AdminCategories />} />
+            <Route path="orders" element={<AdminOrders />} />
+            {/* Add more admin routes here */}
+          </Route>
+
+          {/* ========================================
+              FALLBACK ROUTE
+          ======================================== */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+
+        {/* FAQ Chatbot - Hiển thị trên mọi trang */}
+        <ChatWidget />
+
+        {/* Realtime Toast Notifications */}
+        <ToastNotification />
+      </>
+    </SocketProvider>
   )
 }
 

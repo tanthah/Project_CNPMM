@@ -13,6 +13,7 @@ import wishlistReducer from './redux/wishlistSlice'
 import loyaltyReducer from './redux/loyaltySlice'
 import couponReducer from './redux/couponSlice'
 import commentReducer from './redux/commentSlice'
+import notificationReducer from './redux/notificationSlice'
 
 const store = configureStore({
   reducer: {
@@ -22,13 +23,14 @@ const store = configureStore({
     products: productReducer,
     cart: cartReducer,
     category: categoryReducer,
-    
+
     // ✅ NEW REDUCERS
     review: reviewReducer,
     wishlist: wishlistReducer,
     loyalty: loyaltyReducer,
     coupon: couponReducer,
     comments: commentReducer,
+    notifications: notificationReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

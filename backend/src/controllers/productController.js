@@ -4,6 +4,7 @@ import Product from "../models/Product.js";
 import Review from "../models/Review.js";
 import Order from "../models/Order.js";
 import mongoose from "mongoose";
+import { getIO } from "../sockets/socketHandler.js";
 
 // ✅ ENHANCED: LẤY TẤT CẢ SẢN PHẨM VỚI LAZY LOADING VÀ TÌM KIẾM
 export const getAllProductsWithPagination = async (req, res) => {
@@ -16,7 +17,7 @@ export const getAllProductsWithPagination = async (req, res) => {
 
         // Build search query
         let searchQuery = { isActive: true };
-        
+
         if (search.trim()) {
             searchQuery.$or = [
                 { name: { $regex: search, $options: 'i' } },
@@ -84,11 +85,11 @@ export const getAllProductsWithPagination = async (req, res) => {
 // ✅ NEW: TÌM KIẾM SẢN PHẨM NÂNG CAO
 export const searchProducts = async (req, res) => {
     try {
-        const { 
-            query = '', 
-            category, 
-            minPrice, 
-            maxPrice, 
+        const {
+            query = '',
+            category,
+            minPrice,
+            maxPrice,
             brand,
             sort = 'relevance',
             page = 1,
@@ -163,11 +164,13 @@ export const searchProducts = async (req, res) => {
         const brands = await Product.distinct('brand', { isActive: true });
         const priceRange = await Product.aggregate([
             { $match: { isActive: true } },
-            { $group: {
-                _id: null,
-                minPrice: { $min: '$finalPrice' },
-                maxPrice: { $max: '$finalPrice' }
-            }}
+            {
+                $group: {
+                    _id: null,
+                    minPrice: { $min: '$finalPrice' },
+                    maxPrice: { $max: '$finalPrice' }
+                }
+            }
         ]);
 
         res.json({
@@ -223,8 +226,8 @@ export const suggestProducts = async (req, res) => {
                 { brand: regex }
             ]
         })
-        .select('name brand images finalPrice')
-        .limit(parseInt(limit));
+            .select('name brand images finalPrice')
+            .limit(parseInt(limit));
 
         const suggestions = products.map(p => ({
             id: p._id,
@@ -315,7 +318,7 @@ export const getProductDetail = async (req, res) => {
 
         res.json({ success: true, product });
     } catch (err) {
-        console.error(err); 
+        console.error(err);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -329,7 +332,7 @@ export const getBestSellingProducts = async (req, res) => {
             .populate('categoryId');
         res.json({ success: true, products });
     } catch (err) {
-        console.error(err); 
+        console.error(err);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -343,7 +346,7 @@ export const getNewestProducts = async (req, res) => {
             .populate('categoryId');
         res.json({ success: true, products });
     } catch (err) {
-        console.error(err); 
+        console.error(err);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -357,7 +360,7 @@ export const getMostViewedProducts = async (req, res) => {
             .populate('categoryId');
         res.json({ success: true, products });
     } catch (err) {
-        console.error(err); 
+        console.error(err);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -371,7 +374,7 @@ export const getHighestDiscountProducts = async (req, res) => {
             .populate('categoryId');
         res.json({ success: true, products });
     } catch (err) {
-        console.error(err); 
+        console.error(err);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -382,7 +385,7 @@ export const createProduct = async (req, res) => {
         const product = await Product.create(req.body);
         res.status(201).json({ success: true, product });
     } catch (err) {
-        console.error(err); 
+        console.error(err);
         res.status(400).json({ success: false, message: err.message });
     }
 };
@@ -391,9 +394,17 @@ export const updateProduct = async (req, res) => {
     try {
         const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
         if (!product) return res.status(404).json({ success: false, message: "Không tìm thấy sản phẩm" });
+
+        // Real-time update
+        try {
+            getIO().emit('product_updated', product);
+        } catch (e) {
+            console.error('Socket emit error:', e);
+        }
+
         res.json({ success: true, product });
     } catch (err) {
-        console.error(err); 
+        console.error(err);
         res.status(400).json({ success: false, message: err.message });
     }
 };
@@ -404,7 +415,7 @@ export const deleteProduct = async (req, res) => {
         if (!product) return res.status(404).json({ success: false, message: "Không tìm thấy sản phẩm" });
         res.json({ success: true, message: "Xóa sản phẩm thành công" });
     } catch (err) {
-        console.error(err); 
+        console.error(err);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -419,9 +430,9 @@ export const getSimilarProducts = async (req, res) => {
         // Get current product
         const currentProduct = await Product.findById(id);
         if (!currentProduct) {
-            return res.status(404).json({ 
-                success: false, 
-                message: "Không tìm thấy sản phẩm" 
+            return res.status(404).json({
+                success: false,
+                message: "Không tìm thấy sản phẩm"
             });
         }
 
@@ -431,12 +442,12 @@ export const getSimilarProducts = async (req, res) => {
             _id: { $ne: id },
             isActive: true
         })
-        .sort({ sold: -1, views: -1 }) // Prioritize best sellers
-        .limit(limit)
-        .populate('categoryId', 'name slug');
+            .sort({ sold: -1, views: -1 }) // Prioritize best sellers
+            .limit(limit)
+            .populate('categoryId', 'name slug');
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             products: similarProducts,
             count: similarProducts.length
         });
@@ -454,9 +465,9 @@ export const getProductStats = async (req, res) => {
         // Check if product exists
         const product = await Product.findById(id);
         if (!product) {
-            return res.status(404).json({ 
-                success: false, 
-                message: "Không tìm thấy sản phẩm" 
+            return res.status(404).json({
+                success: false,
+                message: "Không tìm thấy sản phẩm"
             });
         }
 
@@ -481,9 +492,9 @@ export const getProductStats = async (req, res) => {
         const buyerCount = uniqueBuyers.length > 0 ? uniqueBuyers[0].count : 0;
 
         // Count reviews
-        const reviewCount = await Review.countDocuments({ 
+        const reviewCount = await Review.countDocuments({
             productId: id,
-            isHidden: false 
+            isHidden: false
         });
 
         // Count users who reviewed
@@ -530,11 +541,11 @@ export const getProductDetailEnhanced = async (req, res) => {
     try {
         const product = await Product.findById(req.params.id)
             .populate('categoryId');
-            
+
         if (!product) {
-            return res.status(404).json({ 
-                success: false, 
-                message: "Không tìm thấy sản phẩm" 
+            return res.status(404).json({
+                success: false,
+                message: "Không tìm thấy sản phẩm"
             });
         }
 
@@ -560,9 +571,9 @@ export const getProductDetailEnhanced = async (req, res) => {
 
         const buyerCount = uniqueBuyers.length > 0 ? uniqueBuyers[0].count : 0;
 
-        const reviewCount = await Review.countDocuments({ 
+        const reviewCount = await Review.countDocuments({
             productId: product._id,
-            isHidden: false 
+            isHidden: false
         });
 
         const uniqueReviewers = await Review.aggregate([
@@ -582,8 +593,8 @@ export const getProductDetailEnhanced = async (req, res) => {
 
         const reviewerCount = uniqueReviewers.length > 0 ? uniqueReviewers[0].count : 0;
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             product: {
                 ...product.toObject(),
                 stats: {
@@ -594,7 +605,7 @@ export const getProductDetailEnhanced = async (req, res) => {
             }
         });
     } catch (err) {
-        console.error(err); 
+        console.error(err);
         res.status(500).json({ success: false, message: err.message });
     }
 };

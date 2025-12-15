@@ -17,6 +17,7 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { logout } from "../redux/authSlice";
 import { fetchCart } from "../redux/cartSlice";
+import NotificationBell from "./NotificationBell";
 
 import "./css/Header.css";
 
@@ -58,7 +59,7 @@ export default function Header() {
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/search?query=${encodeURIComponent(searchQuery.trim())}`);
+      navigate(`/ search ? query = ${encodeURIComponent(searchQuery.trim())} `);
       setSearchQuery("");
       setShowSuggest(false);
     }
@@ -150,7 +151,7 @@ export default function Header() {
                         const res = await productApi.suggest(q, 8);
                         setSuggestions(res.data.suggestions || []);
                         const nq = q.toLowerCase().normalize('NFD').replace(/\p{Diacritic}+/gu, '');
-                        const catSugs = (categories || []).filter(c => 
+                        const catSugs = (categories || []).filter(c =>
                           (c?.name || '').toLowerCase().normalize('NFD').replace(/\p{Diacritic}+/gu, '').includes(nq)
                         ).slice(0, 8);
                         setCategorySuggestions(catSugs);
@@ -169,7 +170,7 @@ export default function Header() {
                     });
                   }}
                   className="search-input"
-                  />
+                />
                 <Button type="submit" className="search-btn">
                   <i className="bi bi-search"></i>
                 </Button>
@@ -190,7 +191,7 @@ export default function Header() {
                               type="button"
                               className="btn btn-link text-start w-100 p-1"
                               onClick={() => {
-                                navigate(`/category/${cat._id}`);
+                                navigate(`/ category / ${cat._id} `);
                                 setSearchQuery("");
                                 setShowSuggest(false);
                               }}
@@ -209,7 +210,7 @@ export default function Header() {
                               type="button"
                               className="btn btn-link text-start w-100 p-1"
                               onClick={() => {
-                                navigate(`/search?query=${encodeURIComponent(b)}`);
+                                navigate(`/ search ? query = ${encodeURIComponent(b)} `);
                                 setSearchQuery("");
                                 setShowSuggest(false);
                               }}
@@ -231,7 +232,7 @@ export default function Header() {
                               type="button"
                               className="btn btn-link text-start w-100 p-2"
                               onClick={() => {
-                                navigate(`/search?query=${encodeURIComponent(s.name)}`);
+                                navigate(`/ search ? query = ${encodeURIComponent(s.name)} `);
                                 setSearchQuery("");
                                 setShowSuggest(false);
                               }}
@@ -257,6 +258,8 @@ export default function Header() {
 
             {/* ---------------------- RIGHT MENU ---------------------- */}
             <Nav className="ms-auto align-items-center">
+              {token && <NotificationBell />}
+
               <Nav.Link
                 onClick={handleCartClick}
                 className="position-relative me-3 cart-link"
@@ -357,6 +360,6 @@ export default function Header() {
           </Navbar.Collapse>
         </Container>
       </Navbar>
-    </header>
+    </header >
   );
 }
