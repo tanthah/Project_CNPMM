@@ -1,135 +1,95 @@
-// frontend/src/redux/notificationSlice.js
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import * as notificationApi from '../api/notificationApi';
 
-// Async thunks
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import notificationApi from '../api/notificationApi';
+
 export const fetchNotifications = createAsyncThunk(
     'notifications/fetchNotifications',
-    async ({ page = 1, limit = 10, unreadOnly = false }, { rejectWithValue }) => {
-        try {
-            const response = await notificationApi.getNotifications(page, limit, unreadOnly);
-            return response;
-        } catch (error) {
-            return rejectWithValue(error.response?.data?.message || 'Lỗi khi tải thông báo');
-        }
-    }
-);
-
-export const fetchUnreadCount = createAsyncThunk(
-    'notifications/fetchUnreadCount',
-    async (_, { rejectWithValue }) => {
-        try {
-            const response = await notificationApi.getUnreadCount();
-            return response.count;
-        } catch (error) {
-            return rejectWithValue(error.response?.data?.message || 'Lỗi khi đếm thông báo');
-        }
-    }
-);
-
-export const markAsRead = createAsyncThunk(
-    'notifications/markAsRead',
-    async (id, { rejectWithValue }) => {
-        try {
-            await notificationApi.markAsRead(id);
-            return id;
-        } catch (error) {
-            return rejectWithValue(error.response?.data?.message || 'Lỗi khi cập nhật');
-        }
+    async (page = 1) => {
+        const response = await notificationApi.getAll(page);
+        return response.data;
     }
 );
 
 export const markAllAsRead = createAsyncThunk(
     'notifications/markAllAsRead',
-    async (_, { rejectWithValue }) => {
-        try {
-            await notificationApi.markAllAsRead();
-            return;
-        } catch (error) {
-            return rejectWithValue(error.response?.data?.message || 'Lỗi khi cập nhật');
-        }
+    async () => {
+        await notificationApi.markAllAsRead();
+        return;
     }
 );
 
-const initialState = {
-    items: [],
-    unreadCount: 0,
-    total: 0,
-    page: 1,
-    totalPages: 1,
-    loading: false,
-    error: null
-};
+export const markAsRead = createAsyncThunk(
+    'notifications/markAsRead',
+    async (id) => {
+        await notificationApi.markAsRead(id);
+        return id;
+    }
+);
 
 const notificationSlice = createSlice({
     name: 'notifications',
-    initialState,
+    initialState: {
+        items: [],
+        unreadCount: 0,
+        total: 0,
+        loading: false
+    },
     reducers: {
-        // Action khi nhận realtime notification từ socket
         addNotification: (state, action) => {
-            // Add new notification to top
-            state.items.unshift(action.payload);
-            state.unreadCount += 1;
-            state.total += 1;
+            const newItem = action.payload;
+            // Check if exists
+            const exists = state.items.some(i => i._id === newItem._id);
+            if (!exists) {
+                state.items.unshift(newItem);
+                // Sort just in case socket event arrives out of order
+                state.items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-            // Keep only recent 50 items locally to prevent memory issues if needed
-            if (state.items.length > 50) {
-                state.items.pop();
+                state.unreadCount += 1;
+                state.total += 1;
             }
-        },
-        clearNotifications: (state) => {
-            state.items = [];
-            state.unreadCount = 0;
-            state.total = 0;
         }
     },
     extraReducers: (builder) => {
-        // fetchNotifications
         builder
+            // Fetch
             .addCase(fetchNotifications.pending, (state) => {
                 state.loading = true;
             })
             .addCase(fetchNotifications.fulfilled, (state, action) => {
-                state.loading = false;
-                // Nếu là page 1, replace items
-                if (action.meta.arg.page === 1) {
-                    state.items = action.payload.notifications;
-                } else {
-                    // Append items
-                    state.items = [...state.items, ...action.payload.notifications];
-                }
+                // Backend already returns sorted list and total count
+                state.items = action.payload.notifications;
+                state.unreadCount = action.payload.unreadCount;
                 state.total = action.payload.total;
-                state.page = action.payload.page;
-                state.totalPages = action.payload.totalPages;
-            })
-            .addCase(fetchNotifications.rejected, (state, action) => {
                 state.loading = false;
-                state.error = action.payload;
+            })
+            .addCase(fetchNotifications.rejected, (state) => {
+                state.loading = false;
+            })
+            // Mark All Read
+            .addCase(markAllAsRead.pending, (state) => {
+                // Optimistic UI
+                state.unreadCount = 0;
+                state.items.forEach(item => item.isRead = true);
+            })
+            .addCase(markAllAsRead.fulfilled, (state) => {
+                // Keep the optimistic update
+            })
+            .addCase(markAllAsRead.rejected, (state, action) => {
+                console.error('API failed:', action.error);
+                // Revert optimistic update on failure
+                // We don't have previous state, so we need to refetch
+                alert('Lỗi khi đánh dấu đã đọc. Vui lòng thử lại!');
+            })
+            // Mark One Read
+            .addCase(markAsRead.fulfilled, (state, action) => {
+                const item = state.items.find(i => i._id === action.payload);
+                if (item && !item.isRead) {
+                    item.isRead = true;
+                    state.unreadCount = Math.max(0, state.unreadCount - 1);
+                }
             });
-
-        // fetchUnreadCount
-        builder.addCase(fetchUnreadCount.fulfilled, (state, action) => {
-            state.unreadCount = action.payload;
-        });
-
-        // markAsRead
-        builder.addCase(markAsRead.fulfilled, (state, action) => {
-            const notification = state.items.find(item => item._id === action.payload);
-            if (notification && !notification.isRead) {
-                notification.isRead = true;
-                state.unreadCount = Math.max(0, state.unreadCount - 1);
-            }
-        });
-
-        // markAllAsRead
-        builder.addCase(markAllAsRead.fulfilled, (state) => {
-            state.items.forEach(item => {
-                item.isRead = true;
-            });
-            state.unreadCount = 0;
-        });
     }
 });
 
-export const { addNotification, clearNotifications } = notificationSlice.actions;
+export const { addNotification } = notificationSlice.actions;
 export default notificationSlice.reducer;

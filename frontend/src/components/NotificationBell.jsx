@@ -1,46 +1,51 @@
-// frontend/src/components/NotificationBell.jsx
+
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { fetchUnreadCount } from '../redux/notificationSlice';
+import { useSocket } from '../contexts/SocketContext';
+import { fetchNotifications, addNotification } from '../redux/notificationSlice';
 import NotificationDropdown from './NotificationDropdown';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBell } from '@fortawesome/free-solid-svg-icons';
 import './NotificationStyles.css';
 
 const NotificationBell = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const dispatch = useDispatch();
     const { unreadCount } = useSelector((state) => state.notifications);
-    const { user } = useSelector((state) => state.auth);
+    const dispatch = useDispatch();
+    const { socket } = useSocket();
 
+    // Init fetch
     useEffect(() => {
-        if (user) {
-            dispatch(fetchUnreadCount());
-        }
-    }, [dispatch, user]);
+        dispatch(fetchNotifications(1));
+    }, [dispatch]);
 
-    const toggleDropdown = () => {
-        setIsOpen(!isOpen);
-    };
+    // Socket listener
+    useEffect(() => {
+        if (!socket) return;
 
-    const closeDropdown = () => {
-        setIsOpen(false);
-    };
+        const handleNewNotification = (notification) => {
+            // Add to redux store (real-time update)
+            dispatch(addNotification(notification));
+        };
 
-    if (!user) return null;
+        socket.on('new_notification', handleNewNotification);
+
+        return () => {
+            socket.off('new_notification', handleNewNotification);
+        };
+    }, [socket, dispatch]);
 
     return (
-        <div className="notification-bell-container" onClick={toggleDropdown}>
-            <div className="notification-bell-icon">
-                <FontAwesomeIcon icon={faBell} />
-            </div>
+        <div className="notification-bell-container" onClick={() => setIsOpen(!isOpen)}>
+            <i className={`bi ${isOpen ? 'bi-bell-fill' : 'bi-bell'} notification-bell-icon`}></i>
             {unreadCount > 0 && (
                 <span className="notification-badge">
                     {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
             )}
-
-            {isOpen && <NotificationDropdown onClose={closeDropdown} />}
+            {isOpen && (
+                <div onClick={(e) => e.stopPropagation()}>
+                    <NotificationDropdown onClose={() => setIsOpen(false)} />
+                </div>
+            )}
         </div>
     );
 };

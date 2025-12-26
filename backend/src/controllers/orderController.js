@@ -6,6 +6,7 @@ import Product from '../models/Product.js';
 import Address from '../models/Address.js';
 
 import * as notificationService from '../services/notificationService.js';
+import * as emailService from '../services/emailService.js';
 import { getIO } from '../sockets/socketHandler.js'; // Import getIO
 
 // ✅ CREATE ORDER - Updated với status history
@@ -98,6 +99,19 @@ export const createOrder = async (req, res) => {
         });
 
         await order.populate(['items.productId', 'addressId']);
+
+        // ✅ SEND NOTIFICATION TO USER - Order placed
+        try {
+            await notificationService.createNotification({
+                userId,
+                type: 'order_placed',
+                title: 'Đơn hàng đã đặt thành công',
+                message: `Đơn hàng #${order.orderCode} đã được đặt thành công. Đơn hàng sẽ được xác nhận trong 30 phút.`,
+                link: `/orders`
+            });
+        } catch (err) {
+            console.error('Failed to create notification:', err);
+        }
 
         res.status(201).json({
             success: true,
@@ -296,41 +310,76 @@ export const updateOrderStatus = async (req, res) => {
         await order.updateStatus(status, note, 'admin');
 
         // ✅ SEND NOTIFICATION TO USER
+
         const notificationMap = {
             'confirmed': {
                 title: 'Đơn hàng đã được xác nhận',
                 message: `Đơn hàng #${order.orderCode} đã được xác nhận và sẽ được chuẩn bị trong thời gian sớm nhất.`,
                 type: 'order_confirmed'
             },
+            'preparing': {
+                title: 'Đơn hàng đang được chuẩn bị',
+                message: `Đơn hàng #${order.orderCode} đang được chuẩn bị. Shop sẽ giao hàng cho bạn trong thời gian sớm nhất.`,
+                type: 'order_preparing'
+            },
             'shipping': {
                 title: 'Đơn hàng đang được giao',
-                message: `Đơn hàng #${order.orderCode} của bạn đang trên đường giao đến.Vui lòng để ý điện thoại.`,
+                message: `Đơn hàng #${order.orderCode} của bạn đang trên đường giao đến. Vui lòng để ý điện thoại.`,
                 type: 'order_shipping'
             },
             'completed': {
                 title: 'Đơn hàng đã giao thành công',
-                message: `Đơn hàng #${order.orderCode} đã được giao thành công.Cảm ơn bạn đã mua hàng! Hãy đánh giá sản phẩm để nhận điểm thưởng nhé.`,
+                message: `Đơn hàng #${order.orderCode} đã được giao thành công. Cảm ơn bạn đã mua hàng! Hãy đánh giá sản phẩm để nhận điểm thưởng nhé.`,
                 type: 'order_completed'
             },
             'cancelled': {
                 title: 'Đơn hàng đã bị hủy',
-                message: `Đơn hàng #${order.orderCode} đã bị hủy.${note || ''} `,
+                message: `Đơn hàng #${order.orderCode} đã bị hủy. ${note || ''}`,
                 type: 'order_cancelled'
             }
         };
 
-        // Nếu status có trong map, tạo notification
         if (notificationMap[status]) {
             const { title, message, type } = notificationMap[status];
-            await notificationService.createNotification({
-                userId: order.userId,
-                type,
-                title,
-                message,
-                link: `/ orders / ${order._id} `,
-                referenceId: order._id,
-                referenceType: 'Order'
-            });
+            try {
+                await notificationService.createNotification({
+                    userId: order.userId,
+                    type,
+                    title,
+                    message,
+                    link: `/orders`
+                });
+            } catch (err) {
+                console.error('Failed to create notification:', err);
+            }
+        }
+
+        // ✅ SEND EMAIL for confirmed and completed orders
+        const orderWithUser = await Order.findById(order._id).populate('userId');
+        if (orderWithUser && orderWithUser.userId && orderWithUser.userId.email) {
+            const userEmail = orderWithUser.userId.email;
+
+            if (status === 'confirmed') {
+                try {
+                    await emailService.sendOrderConfirmationEmail(userEmail, {
+                        orderCode: order.orderCode,
+                        totalPrice: order.totalPrice,
+                        items: order.items
+                    });
+                } catch (err) {
+                    console.error('Failed to send confirmation email:', err);
+                }
+            } else if (status === 'completed') {
+                try {
+                    await emailService.sendOrderCompletedEmail(userEmail, {
+                        orderCode: order.orderCode,
+                        totalPrice: order.totalPrice,
+                        items: order.items
+                    });
+                } catch (err) {
+                    console.error('Failed to send completed email:', err);
+                }
+            }
         }
 
         res.json({
