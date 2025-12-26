@@ -35,6 +35,7 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminProducts from './pages/admin/AdminProducts'
 import AdminCategories from './pages/admin/AdminCategories'
 import AdminOrders from './pages/admin/AdminOrders'
+import AdminChat from './pages/admin/AdminChat'
 
 // ✅ PROTECTED ROUTE COMPONENT
 function ProtectedRoute({ children, adminOnly = false }) {
@@ -151,6 +152,7 @@ function App() {
             <Route path="products" element={<AdminProducts />} />
             <Route path="categories" element={<AdminCategories />} />
             <Route path="orders" element={<AdminOrders />} />
+            <Route path="chat" element={<AdminChat />} />
             {/* Add more admin routes here */}
           </Route>
 

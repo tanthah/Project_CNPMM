@@ -47,7 +47,7 @@ export default function AdminDashboard() {
   return (
     <div className="admin-dashboard">
       <h2 className="mb-4">Tổng quan hệ thống</h2>
-      
+
       <Row className="g-4">
         <Col md={6} lg={3}>
           <Card className="stat-card stat-card-primary">
@@ -130,6 +130,12 @@ export default function AdminDashboard() {
                   <div className="quick-link" onClick={() => window.location.href = '/admin/orders'}>
                     <i className="bi bi-receipt"></i>
                     <span>Quản lý đơn hàng</span>
+                  </div>
+                </Col>
+                <Col md={4}>
+                  <div className="quick-link" onClick={() => window.location.href = '/admin/chat'}>
+                    <i className="bi bi-chat-dots-fill"></i>
+                    <span>Hỗ trợ khách hàng</span>
                   </div>
                 </Col>
               </Row>

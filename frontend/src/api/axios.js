@@ -9,13 +9,15 @@ const instance = axios.create({
 
 // attach token from localStorage on each request
 instance.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('token');
   if (token) {
-    config.headers = config.headers || {}
-    config.headers['Authorization'] = `Bearer ${token}`
+    config.headers = config.headers || {};
+    config.headers['Authorization'] = `Bearer ${token}`;
   }
-  return config
-})
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
 
 // optional: handle 401 globally
 instance.interceptors.response.use(
@@ -23,11 +25,11 @@ instance.interceptors.response.use(
   (error) => {
     if (error?.response?.status === 401) {
       // optionally clear token and force reload
-      localStorage.removeItem('token')
+      localStorage.removeItem('token');
       // window.location.href = '/login'
     }
-    return Promise.reject(error)
+    return Promise.reject(error);
   }
-)
+);
 
 export default instance

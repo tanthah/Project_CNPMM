@@ -1,58 +1,43 @@
-// frontend/src/components/NotificationItem.jsx
+
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faCheckCircle,
-    faTruck,
-    faTimesCircle,
-    faTicketAlt,
-    faComment,
-    faGift,
-    faBell,
-    faClipboardCheck
-} from '@fortawesome/free-solid-svg-icons';
 import './NotificationStyles.css';
 
 const NotificationItem = ({ notification, onClick }) => {
-    const navigate = useNavigate();
-
-    const handleClick = () => {
-        if (onClick) onClick(notification);
-        if (notification.link) {
-            navigate(notification.link);
+    // Helper to get icon
+    const getIcon = (type) => {
+        switch (type) {
+            case 'order_confirmed': return 'bi-check-circle-fill text-success';
+            case 'order_shipping': return 'bi-truck text-primary';
+            case 'order_cancelled': return 'bi-x-circle-fill text-danger';
+            case 'order_completed': return 'bi-star-fill text-warning';
+            default: return 'bi-bell-fill text-secondary';
         }
     };
 
-    const getIcon = (type) => {
-        switch (type) {
-            case 'order_confirmed': return <FontAwesomeIcon icon={faClipboardCheck} className="text-primary" />;
-            case 'order_shipping': return <FontAwesomeIcon icon={faTruck} className="text-info" />;
-            case 'order_completed': return <FontAwesomeIcon icon={faCheckCircle} className="text-success" />;
-            case 'order_cancelled': return <FontAwesomeIcon icon={faTimesCircle} className="text-danger" />;
-            case 'coupon_received': return <FontAwesomeIcon icon={faTicketAlt} className="text-warning" />;
-            case 'comment_reply': return <FontAwesomeIcon icon={faComment} className="text-secondary" />;
-            case 'loyalty_points': return <FontAwesomeIcon icon={faGift} className="text-danger" />;
-            default: return <FontAwesomeIcon icon={faBell} className="text-muted" />;
-        }
+    // Format time
+    const formatTime = (dateString) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('vi-VN', {
+            hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit'
+        });
     };
 
     return (
         <div
-            className={`notification-item ${!notification.isRead ? 'unread' : 'read'}`}
-            onClick={handleClick}
+            className={`notification-item ${!notification.isRead ? 'unread' : ''}`}
+            onClick={() => onClick(notification)}
         >
-            <div className="notification-icon">
-                {getIcon(notification.type)}
+            <div className="notification-icon-wrapper">
+                <i className={`bi ${getIcon(notification.type)}`}></i>
             </div>
             <div className="notification-content">
-                <div className="notification-header">
-                    <span className="notification-title">{notification.title}</span>
-                    <span className="notification-time">{notification.timeAgo}</span>
-                </div>
-                <p className="notification-message">{notification.message}</p>
+                <div className="notification-title">{notification.title}</div>
+                <div className="notification-message">{notification.message}</div>
+                <div className="notification-time">{formatTime(notification.createdAt)}</div>
             </div>
-            {!notification.isRead && <div className="notification-dot" />}
+            {!notification.isRead && (
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#007bff', marginTop: 6 }}></div>
+            )}
         </div>
     );
 };

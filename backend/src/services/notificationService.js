@@ -1,140 +1,67 @@
-// backend/src/services/notificationService.js
+
 import Notification from '../models/Notification.js';
+import mongoose from 'mongoose';
 import { emitToUser } from '../sockets/socketHandler.js';
 
-/**
- * Tạo notification mới và emit qua socket
- */
-export const createNotification = async ({
-    userId,
-    type,
-    title,
-    message,
-    link = '',
-    referenceId = null,
-    referenceType = null,
-    metadata = {}
-}) => {
+// 1. Create & Emit
+export const createNotification = async ({ userId, title, message, type = 'system', link = '' }) => {
     try {
-        // Tạo notification trong DB
         const notification = await Notification.create({
             userId,
-            type,
             title,
             message,
-            link,
-            referenceId,
-            referenceType,
-            metadata
+            type,
+            link
         });
 
-        // Emit realtime notification qua socket
-        emitToUser(userId, 'new_notification', {
-            _id: notification._id,
-            type: notification.type,
-            title: notification.title,
-            message: notification.message,
-            link: notification.link,
-            createdAt: notification.createdAt,
-            isRead: false
-        });
-
-        console.log(`✅ Notification created for user ${userId}: ${title}`);
+        // Emit real-time
+        emitToUser(userId, 'new_notification', notification);
 
         return notification;
     } catch (error) {
-        console.error('❌ Error creating notification:', error);
-        throw error;
+        console.error('Create Notif Error:', error.message);
     }
 };
 
-/**
- * Lấy danh sách notifications của user
- */
-export const getUserNotifications = async (userId, { page = 1, limit = 10, unreadOnly = false }) => {
-    try {
-        const query = { userId };
-        if (unreadOnly) {
-            query.isRead = false;
-        }
+// 2. Get List (Simple pagination)
+export const getUserNotifications = async (userId, page = 1) => {
+    const limit = 10;
+    const skip = (page - 1) * limit;
 
-        const notifications = await Notification.find(query)
-            .sort({ createdAt: -1 })
-            .limit(limit)
-            .skip((page - 1) * limit);
+    const notifications = await Notification.find({ userId })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
 
-        const total = await Notification.countDocuments(query);
+    const total = await Notification.countDocuments({ userId });
+    const unreadCount = await Notification.countDocuments({ userId, isRead: false });
 
-        return {
-            notifications,
-            total,
-            page,
-            totalPages: Math.ceil(total / limit)
-        };
-    } catch (error) {
-        console.error('❌ Error getting notifications:', error);
-        throw error;
-    }
+    return { notifications, total, unreadCount };
 };
 
-/**
- * Đếm số notification chưa đọc
- */
-export const getUnreadCount = async (userId) => {
-    try {
-        const count = await Notification.countDocuments({ userId, isRead: false });
-        return count;
-    } catch (error) {
-        console.error('❌ Error counting unread notifications:', error);
-        throw error;
-    }
+// 3. Mark One as Read
+export const markAsRead = async (id, userId) => {
+    return await Notification.findOneAndUpdate(
+        { _id: id, userId },
+        { isRead: true },
+        { new: true }
+    );
 };
 
-/**
- * Đánh dấu notification đã đọc
- */
-export const markAsRead = async (notificationId, userId) => {
-    try {
-        const notification = await Notification.findOneAndUpdate(
-            { _id: notificationId, userId },
-            { isRead: true },
-            { new: true }
-        );
-        return notification;
-    } catch (error) {
-        console.error('❌ Error marking notification as read:', error);
-        throw error;
-    }
-};
-
-/**
- * Đánh dấu tất cả notifications đã đọc
- */
+// 4. Mark All as Read
 export const markAllAsRead = async (userId) => {
-    try {
-        const result = await Notification.updateMany(
-            { userId, isRead: false },
-            { isRead: true }
-        );
-        return result.modifiedCount;
-    } catch (error) {
-        console.error('❌ Error marking all as read:', error);
-        throw error;
-    }
+    // Explicitly cast to ObjectId to ensure updates work
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    const result = await Notification.updateMany(
+        { userId: userObjectId, isRead: false },
+        { isRead: true }
+    );
+
+    return result;
 };
 
-/**
- * Xóa notification
- */
-export const deleteNotification = async (notificationId, userId) => {
-    try {
-        const notification = await Notification.findOneAndDelete({
-            _id: notificationId,
-            userId
-        });
-        return notification;
-    } catch (error) {
-        console.error('❌ Error deleting notification:', error);
-        throw error;
-    }
+// 5. Delete
+export const deleteNotification = async (id, userId) => {
+    return await Notification.findOneAndDelete({ _id: id, userId });
 };
