@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useSocket } from '../contexts/SocketContext';
 import { fetchNotifications, addNotification } from '../redux/notificationSlice';
 import NotificationDropdown from './NotificationDropdown';
-import './NotificationStyles.css';
+import './css/NotificationStyles.css';
 
 const NotificationBell = () => {
     const [isOpen, setIsOpen] = useState(false);

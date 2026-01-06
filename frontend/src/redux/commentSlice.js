@@ -25,6 +25,22 @@ export const createComment = createAsyncThunk(
   }
 )
 
+// ✅ MOVED BEFORE SLICE - Fix: Define thunk before using in extraReducers
+export const toggleLikeComment = createAsyncThunk(
+  'comments/toggleLike',
+  async (commentId, { rejectWithValue }) => {
+    try {
+      console.log('🔄 toggleLikeComment called with ID:', commentId)
+      const res = await commentApi.toggleLike(commentId)
+      console.log('✅ toggleLikeComment response:', res.data)
+      return { commentId, likes: res.data.likes }
+    } catch (err) {
+      console.error('❌ toggleLikeComment error:', err?.response?.data || err.message)
+      return rejectWithValue(err?.response?.data?.message || 'Lỗi like bình luận')
+    }
+  }
+)
+
 const initialState = {
   productComments: [],
   pagination: null,
@@ -72,9 +88,21 @@ const slice = createSlice({
         state.submitting = false
         state.error = action.payload
       })
+      .addCase(toggleLikeComment.fulfilled, (state, action) => {
+        // ✅ Update likes in the local state - recursive search
+        const updateLikesRecursive = (comments) => {
+          for (let c of comments) {
+            if (c._id === action.payload.commentId) {
+              c.likes = action.payload.likes
+              return true
+            }
+          }
+          return false
+        }
+        updateLikesRecursive(state.productComments)
+      })
   }
 })
 
 export const { clearComments, clearCommentError } = slice.actions
 export default slice.reducer
-

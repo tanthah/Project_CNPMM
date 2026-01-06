@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchNotifications, markAllAsRead, markAsRead } from '../redux/notificationSlice';
 import NotificationItem from './NotificationItem';
 import { useNavigate } from 'react-router-dom';
-import './NotificationStyles.css';
+import './css/NotificationStyles.css';
 
 const NotificationDropdown = ({ onClose }) => {
     const dispatch = useDispatch();

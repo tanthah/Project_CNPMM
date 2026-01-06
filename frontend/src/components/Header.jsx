@@ -1,5 +1,6 @@
 // frontend/src/components/Header.jsx - UPDATED
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
+import { SettingsContext } from "../contexts/SettingsContext";
 import {
   Container,
   Nav,
@@ -10,20 +11,24 @@ import {
   Badge,
   Image,
 } from "react-bootstrap";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import productApi from '../api/productApi'
 import categoryApi from '../api/categoryApi'
 import { useSelector, useDispatch } from "react-redux";
 
-import { logout } from "../redux/authSlice";
+import { logoutAsync } from "../redux/authSlice";
 import { fetchCart } from "../redux/cartSlice";
 import NotificationBell from "./NotificationBell";
+import { useNotification } from "./NotificationProvider";
 
 import "./css/Header.css";
 
 export default function Header() {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
+  const settings = useContext(SettingsContext);
+  const notify = useNotification();
 
   const { user, token } = useSelector((s) => s.auth);
   const { cart } = useSelector((s) => s.cart);
@@ -51,15 +56,16 @@ export default function Header() {
   }, []);
 
   /* ---------------------- HANDLERS ---------------------- */
-  const handleLogout = useCallback(() => {
-    dispatch(logout());
-    navigate("/");
-  }, [dispatch, navigate]);
+  const handleLogout = () => {
+    dispatch(logoutAsync());
+    notify('Đăng xuất thành công', 'success')
+    navigate('/')
+  }
 
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/ search ? query = ${encodeURIComponent(searchQuery.trim())} `);
+      navigate(`/search?query=${encodeURIComponent(searchQuery.trim())}`);
       setSearchQuery("");
       setShowSuggest(false);
     }
@@ -82,18 +88,18 @@ export default function Header() {
     <header className="header-main">
       {/* ---------------------- TOP BAR ---------------------- */}
       <div className="top-bar">
-        <Container>
+        <Container fluid>
           <div className="d-flex justify-content-between">
             <div>
               <i className="bi bi-telephone-fill me-2"></i>
-              Hotline: 1900 xxxx
+              Hotline: {settings?.general?.supportPhone}
               <span className="mx-3">|</span>
               <i className="bi bi-envelope-fill me-2"></i>
-              support@tvshop.com
+              {settings?.general?.contactEmail}
             </div>
             <div>
-              <i className="bi bi-truck me-2"></i>
-              Miễn phí vận chuyển cho đơn hàng từ 500K
+
+              {settings?.general?.homepageMessage || 'Miễn phí vận chuyển cho đơn hàng từ 500K'}
             </div>
           </div>
         </Container>
@@ -101,10 +107,10 @@ export default function Header() {
 
       {/* ---------------------- NAVBAR ---------------------- */}
       <Navbar bg="white" expand="lg" className="shadow-sm main-navbar">
-        <Container>
+        <Container fluid>
           <Navbar.Brand as={Link} to="/" className="brand-logo">
             <i className="bi bi-shop text-primary me-1"></i>
-            <span className="brand-text">TV Shop</span>
+            <span className="brand-text">{settings?.general?.siteName || 'TV Shop'}</span>
           </Navbar.Brand>
 
           <Navbar.Toggle />
@@ -112,16 +118,20 @@ export default function Header() {
           <Navbar.Collapse>
             {/* ---------------------- NAVIGATION LINKS ---------------------- */}
             <Nav className="me-auto category-nav-inline">
-              <Nav.Link as={Link} to="/" className="category-link">
+              <Nav.Link as={Link} to="/" className={`category-link ${location.pathname === '/' ? 'active' : ''}`}>
                 <i className="bi bi-house-door me-1"></i>Trang chủ
               </Nav.Link>
 
-              <Nav.Link as={Link} to="/products" className="category-link">
+              <Nav.Link as={Link} to="/products" className={`category-link ${location.pathname === '/products' ? 'active' : ''}`}>
                 <i className="bi bi-box-seam me-1"></i>Sản phẩm
               </Nav.Link>
 
-              <Nav.Link as={Link} to="/about" className="category-link">
+              <Nav.Link as={Link} to="/about" className={`category-link ${location.pathname === '/about' ? 'active' : ''}`}>
                 <i className="bi bi-info-circle me-1"></i>Giới thiệu
+              </Nav.Link>
+
+              <Nav.Link as={Link} to="/support" className={`category-link ${location.pathname === '/support' ? 'active' : ''}`}>
+                <i className="bi bi-headset me-1"></i>Hỗ trợ
               </Nav.Link>
             </Nav>
 
@@ -129,6 +139,7 @@ export default function Header() {
             <Form className="search-form position-relative" onSubmit={handleSearch}>
               <div className="input-group">
                 <Form.Control
+                  id="search-input"
                   type="search"
                   placeholder="Tìm kiếm sản phẩm..."
                   value={searchQuery}
@@ -191,7 +202,7 @@ export default function Header() {
                               type="button"
                               className="btn btn-link text-start w-100 p-1"
                               onClick={() => {
-                                navigate(`/ category / ${cat._id} `);
+                                navigate(`/category/${cat._id}`);
                                 setSearchQuery("");
                                 setShowSuggest(false);
                               }}
@@ -210,7 +221,7 @@ export default function Header() {
                               type="button"
                               className="btn btn-link text-start w-100 p-1"
                               onClick={() => {
-                                navigate(`/ search ? query = ${encodeURIComponent(b)} `);
+                                navigate(`/search?query=${encodeURIComponent(b)}`);
                                 setSearchQuery("");
                                 setShowSuggest(false);
                               }}
@@ -232,7 +243,7 @@ export default function Header() {
                               type="button"
                               className="btn btn-link text-start w-100 p-2"
                               onClick={() => {
-                                navigate(`/ search ? query = ${encodeURIComponent(s.name)} `);
+                                navigate(`/search?query=${encodeURIComponent(s.name)}`);
                                 setSearchQuery("");
                                 setShowSuggest(false);
                               }}
@@ -314,19 +325,7 @@ export default function Header() {
                     <i className="bi bi-clock-history me-2"></i>Sản phẩm đã xem
                   </NavDropdown.Item>
 
-                  {isAdmin && (
-                    <>
-                      <NavDropdown.Divider />
-                      <NavDropdown.Item
-                        as={Link}
-                        to="/admin/dashboard"
-                        className="text-danger"
-                      >
-                        <i className="bi bi-shield-check me-2"></i>
-                        <strong>Quản trị</strong>
-                      </NavDropdown.Item>
-                    </>
-                  )}
+
 
                   <NavDropdown.Divider />
                   <NavDropdown.Item onClick={handleLogout}>

@@ -1,10 +1,6 @@
-
 /*app.css*/
 #root {
-  max-width: 1330px;
-  margin: 0 auto;
-  padding: 0.5rem;
-  text-align: center;
+  width: 100%;
 }
 
 .logo {
@@ -13,9 +9,11 @@
   will-change: filter;
   transition: filter 300ms;
 }
+
 .logo:hover {
   filter: drop-shadow(0 0 2em #646cffaa);
 }
+
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
@@ -24,6 +22,7 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }

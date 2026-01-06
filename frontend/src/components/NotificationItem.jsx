@@ -1,6 +1,6 @@
 
 import React from 'react';
-import './NotificationStyles.css';
+import './css/NotificationStyles.css';
 
 const NotificationItem = ({ notification, onClick }) => {
     // Helper to get icon
