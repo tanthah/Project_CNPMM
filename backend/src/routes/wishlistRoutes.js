@@ -1,4 +1,4 @@
-// backend/src/routes/wishlistRoutes.js - ENHANCED
+
 import express from 'express';
 import { authenticateToken } from '../middleware/authMiddleware.js';
 import {
@@ -18,7 +18,7 @@ router.get('/', getWishlist);
 router.post('/add', addToWishlist);
 router.delete('/remove/:productId', removeFromWishlist);
 router.get('/check/:productId', checkWishlist);
-router.post('/check-multiple', checkMultipleWishlist); // ✅ NEW: Batch check
+router.post('/check-multiple', checkMultipleWishlist); // NEW: Kiểm tra hàng loạt
 router.delete('/clear', clearWishlist);
 
 export default router;

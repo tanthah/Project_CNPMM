@@ -1,4 +1,4 @@
-// backend/src/routes/productRoutes.js - ENHANCED
+
 import express from 'express'
 import {
     getAllProducts,
@@ -21,7 +21,7 @@ import {
 
 const router = express.Router()
 
-// Public routes
+// Route công khai
 router.get('/', getAllProducts)
 router.get('/paginated', getAllProductsWithPagination)
 router.get('/search', searchProducts)
@@ -32,15 +32,15 @@ router.get('/newest', getNewestProducts)
 router.get('/most-viewed', getMostViewedProducts)
 router.get('/highest-discount', getHighestDiscountProducts)
 
-// ✅ NEW ROUTES
+// ✅ ROUTE MỚI
 router.get('/:id/similar', getSimilarProducts) // Sản phẩm tương tự
 router.get('/:id/stats', getProductStats) // Thống kê sản phẩm
 router.get('/:id/enhanced', getProductDetailEnhanced) // Chi tiết + stats
 
-// Product detail (keep existing)
+// Chi tiết sản phẩm (giữ nguyên hiện tại)
 router.get('/:id', getProductDetail)
 
-// Admin routes - TODO: Add authentication middleware
+// Route Admin - TODO: Thêm middleware xác thực
 router.post('/', createProduct)
 router.put('/:id', updateProduct)
 router.delete('/:id', deleteProduct)

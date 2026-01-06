@@ -23,18 +23,18 @@ export const registerValidation = [
     .notEmpty().withMessage('Tên không được để trống')
     .isLength({ min: 2, max: 50 }).withMessage('Tên phải từ 2-50 ký tự')
     .matches(/^[a-zA-ZÀ-ỹ\s]+$/).withMessage('Tên chỉ được chứa chữ cái'),
-  
+
   body('email')
     .trim()
     .notEmpty().withMessage('Email không được để trống')
     .isEmail().withMessage('Email không hợp lệ')
     .normalizeEmail(),
-  
+
   body('password')
     .notEmpty().withMessage('Mật khẩu không được để trống')
     .isLength({ min: 8 }).withMessage('Mật khẩu phải có ít nhất 8 ký tự')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])/).withMessage('Mật khẩu phải chứa chữ hoa, chữ thường, số và ký tự đặc biệt'),
-  
+
   body('confirmPassword')
     .notEmpty().withMessage('Xác nhận mật khẩu không được để trống')
     .custom((value, { req }) => {
@@ -43,11 +43,11 @@ export const registerValidation = [
       }
       return true;
     }),
-  
+
   body('phone')
     .optional()
     .matches(/^(0|\+84)[0-9]{9,10}$/).withMessage('Số điện thoại không hợp lệ'),
-  
+
   body('dateOfBirth')
     .optional()
     .isISO8601().withMessage('Ngày sinh không hợp lệ')
@@ -61,11 +61,11 @@ export const registerValidation = [
       }
       return true;
     }),
-  
+
   body('gender')
     .optional()
     .isIn(['male', 'female', 'other']).withMessage('Giới tính không hợp lệ'),
-  
+
   handleValidationErrors
 ];
 
@@ -76,10 +76,10 @@ export const loginValidation = [
     .notEmpty().withMessage('Email không được để trống')
     .isEmail().withMessage('Email không hợp lệ')
     .normalizeEmail(),
-  
+
   body('password')
     .notEmpty().withMessage('Mật khẩu không được để trống'),
-  
+
   handleValidationErrors
 ];
 
@@ -90,7 +90,7 @@ export const forgotPasswordValidation = [
     .notEmpty().withMessage('Email không được để trống')
     .isEmail().withMessage('Email không hợp lệ')
     .normalizeEmail(),
-  
+
   handleValidationErrors
 ];
 
@@ -101,12 +101,12 @@ export const verifyOtpValidation = [
     .notEmpty().withMessage('Email không được để trống')
     .isEmail().withMessage('Email không hợp lệ')
     .normalizeEmail(),
-  
+
   body('otp')
     .notEmpty().withMessage('OTP không được để trống')
     .isLength({ min: 6, max: 6 }).withMessage('OTP phải có 6 chữ số')
     .isNumeric().withMessage('OTP chỉ được chứa số'),
-  
+
   handleValidationErrors
 ];
 
@@ -117,17 +117,17 @@ export const resetPasswordValidation = [
     .notEmpty().withMessage('Email không được để trống')
     .isEmail().withMessage('Email không hợp lệ')
     .normalizeEmail(),
-  
+
   body('otp')
     .notEmpty().withMessage('OTP không được để trống')
     .isLength({ min: 6, max: 6 }).withMessage('OTP phải có 6 chữ số')
     .isNumeric().withMessage('OTP chỉ được chứa số'),
-  
+
   body('newPassword')
     .notEmpty().withMessage('Mật khẩu mới không được để trống')
     .isLength({ min: 8 }).withMessage('Mật khẩu phải có ít nhất 8 ký tự')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])/).withMessage('Mật khẩu phải chứa chữ hoa, chữ thường, số và ký tự đặc biệt'),
-  
+
   handleValidationErrors
 ];
 
@@ -139,20 +139,20 @@ export const updateProfileValidation = [
     .notEmpty().withMessage('Tên không được để trống')
     .isLength({ min: 2, max: 50 }).withMessage('Tên phải từ 2-50 ký tự')
     .matches(/^[a-zA-ZÀ-ỹ\s]+$/).withMessage('Tên chỉ được chứa chữ cái'),
-  
+
   body('email')
     .optional()
     .trim()
     .notEmpty().withMessage('Email không được để trống')
     .isEmail().withMessage('Email không hợp lệ')
     .normalizeEmail(),
-  
+
   body('phone')
-    .optional()
+    .optional({ values: 'falsy' }) // Allow empty string, null, undefined
     .matches(/^(0|\+84)[0-9]{9,10}$/).withMessage('Số điện thoại không hợp lệ'),
-  
+
   body('dateOfBirth')
-    .optional()
+    .optional({ values: 'falsy' }) // Allow empty string, null, undefined
     .isISO8601().withMessage('Ngày sinh không hợp lệ')
     .custom((value) => {
       const age = new Date().getFullYear() - new Date(value).getFullYear();
@@ -161,11 +161,11 @@ export const updateProfileValidation = [
       }
       return true;
     }),
-  
+
   body('gender')
     .optional()
     .isIn(['male', 'female', 'other']).withMessage('Giới tính không hợp lệ'),
-  
+
   handleValidationErrors
 ];
 
@@ -176,7 +176,7 @@ export const sendRegisterOtpValidation = [
     .notEmpty().withMessage('Email không được để trống')
     .isEmail().withMessage('Email không hợp lệ')
     .normalizeEmail(),
-  
+
   handleValidationErrors
 ];
 
@@ -186,17 +186,17 @@ export const completeRegisterValidation = [
     .trim()
     .notEmpty().withMessage('Tên không được để trống')
     .isLength({ min: 2, max: 50 }).withMessage('Tên phải từ 2-50 ký tự'),
-  
+
   body('email')
     .trim()
     .notEmpty().withMessage('Email không được để trống')
     .isEmail().withMessage('Email không hợp lệ')
     .normalizeEmail(),
-  
+
   body('password')
     .notEmpty().withMessage('Mật khẩu không được để trống')
     .isLength({ min: 8 }).withMessage('Mật khẩu phải có ít nhất 8 ký tự'),
-  
+
   body('confirmPassword')
     .notEmpty().withMessage('Xác nhận mật khẩu không được để trống')
     .custom((value, { req }) => {
@@ -205,11 +205,11 @@ export const completeRegisterValidation = [
       }
       return true;
     }),
-  
+
   body('otp')
     .notEmpty().withMessage('OTP không được để trống')
     .isLength({ min: 6, max: 6 }).withMessage('OTP phải có 6 chữ số')
     .isNumeric().withMessage('OTP chỉ được chứa số'),
-  
+
   handleValidationErrors
 ];

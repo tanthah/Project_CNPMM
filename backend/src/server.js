@@ -1,10 +1,11 @@
-// backend/server.js - UPDATED WITH WEBSOCKET
+
 import 'dotenv/config'
 import express from 'express'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import cors from 'cors'
 import connectDB from './config/db.js'
+import passport from './config/passport.js'
 
 // Import routes
 import authRoutes from './routes/auth.js'
@@ -16,7 +17,6 @@ import orderRoutes from './routes/orderRoutes.js'
 import addressRoutes from './routes/addressRoutes.js'
 import categoryRoutes from "./routes/categoryRoutes.js"
 
-// ✅ NEW ROUTES
 import reviewRoutes from './routes/reviewRoutes.js'
 import wishlistRoutes from './routes/wishlistRoutes.js'
 import viewedProductRoutes from './routes/viewedProductRoutes.js'
@@ -25,8 +25,12 @@ import couponRoutes from './routes/couponRoutes.js'
 import commentRoutes from './routes/commentRoutes.js'
 import notificationRoutes from './routes/notificationRoutes.js'
 import faqRoutes from './routes/faqRoutes.js'
+import faqCategoryRoutes from './routes/faqCategoryRoutes.js'
+import settingRoutes from './routes/settingRoutes.js'
+import subscribeRoutes from './routes/subscribeRoutes.js'
+import adminUserRoutes from './routes/adminUserRoutes.js'
 
-// Import security middlewares
+// Import middleware bảo mật
 import {
   hppProtection,
   checkContentType
@@ -37,57 +41,74 @@ import { generalLimiter } from './middleware/rateLimiter.js'
 import { startOrderAutoConfirm } from './utils/orderCronJobs.js'
 
 // Import admin routes
-import adminRoutes from './routes/admin/adminRoutes.js'
+// import adminRoutes from './routes/admin/adminRoutes.js'
 
 // Import socket handler
 import { initializeSocket } from './sockets/socketHandler.js'
 
 const app = express()
 const httpServer = createServer(app)
-const PORT = process.env.PORT || 4000
+const PORT = process.env.PORT || 5000
 
-// Initialize Socket.IO
+// Khởi tạo Socket.IO
 const io = new Server(httpServer, {
   cors: {
-    origin: ['http://localhost:5173', 'http://localhost:4173'],
+    origin: [
+      'http://localhost:5173',
+      'http://localhost:4173',
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:4000',
+      'http://localhost:4001'
+    ],
     credentials: true,
     methods: ['GET', 'POST']
   }
 })
 
-// Initialize socket handlers
+// Khởi tạo các handler cho socket
 initializeSocket(io)
 
 // CORS
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:4000'],
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:5000',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:4000',
+    'http://localhost:4001'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   optionsSuccessStatus: 200
 }))
 
-// Security Middlewares
+// Middleware Bảo Mật
 app.use(hppProtection)
 //app.use(generalLimiter)
 
-// Body parsers
+// Trình phân tích cú pháp body
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
-// Check Content-Type
+// Kiểm tra Content-Type
 app.use(checkContentType)
 
-// Database Connection
+// Kết nối cơ sở dữ liệu
 connectDB()
 
-// Start cron jobs
+// Khởi động các tác vụ định kỳ (cron jobs)
 startOrderAutoConfirm()
 
-// Static Files
+// Các file tĩnh
 app.use('/uploads', express.static('uploads'))
 
-// API Routes
+// Khởi tạo Passport
+app.use(passport.initialize())
+
+// Các API Route
 app.use('/api/auth', generalLimiter, authRoutes)
 app.use('/api/register', generalLimiter, registerRoutes)
 
@@ -106,11 +127,15 @@ app.use('/api/coupons', couponRoutes)
 app.use('/api/comments', commentRoutes)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/faqs', faqRoutes)
+app.use('/api/settings', settingRoutes)
+app.use('/api/subscribe', subscribeRoutes)
+app.use('/api/users/admin', adminUserRoutes)
+app.use('/api/faq-categories', faqCategoryRoutes)
 
-// Add this line with other routes:
-app.use('/api/admin', adminRoutes)
+// Thêm dòng này với các route khác:
+// app.use('/api/admin', adminRoutes)
 
-// Health check
+// Kiểm tra sức khỏe hệ thống (Health check)
 app.get('/api/health', (req, res) => {
   res.json({
     ok: true,
@@ -119,7 +144,7 @@ app.get('/api/health', (req, res) => {
   })
 })
 
-// 404 Handler
+// Xử lý lỗi 404
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -127,7 +152,7 @@ app.use((req, res) => {
   })
 })
 
-// Global Error Handler
+// Xử lý lỗi toàn cục
 app.use((err, req, res, next) => {
   console.error('Error:', err.stack)
 
@@ -167,16 +192,17 @@ app.use((err, req, res, next) => {
   })
 })
 
-// Start Server with WebSocket
+// Khởi động Server với WebSocket
 httpServer.listen(PORT, () => {
-  console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`)
-  console.log(`🔒 Security middlewares đã được kích hoạt`)
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`)
-  console.log(`🌐 CORS enabled for: http://localhost:5173`)
-  console.log(`⏰ Cron jobs đã được kích hoạt`)
-  console.log(`✅ New features: Reviews, Wishlist, Loyalty Points, Coupons`)
-  console.log(`🔔 WebSocket: Notifications enabled`)
-  console.log(`💬 FAQ Chatbot ready`)
+  console.log(`Server đang chạy tại http://localhost:${PORT}`)
+  console.log(`Security middlewares đã được kích hoạt`)
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`)
+  console.log(`CORS enabled for: http://localhost:5173`)
+  console.log(`Cron jobs đã được kích hoạt`)
+  console.log(`New features: Reviews, Wishlist, Loyalty Points, Coupons`)
+  console.log(`WebSocket: Notifications enabled`)
+  console.log(`FAQ Chatbot ready`)
 })
 
 export default app
+

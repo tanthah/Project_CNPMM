@@ -1,8 +1,8 @@
-// backend/src/controllers/wishlistController.js - ENHANCED WITH BATCH CHECK
+
 import Wishlist from '../models/Wishlist.js';
 import Product from '../models/Product.js';
 
-// ✅ GET USER WISHLIST
+// ✅ LẤY DANH SÁCH YÊU THÍCH CỦA USER
 export const getWishlist = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -17,11 +17,11 @@ export const getWishlist = async (req, res) => {
       wishlist = await Wishlist.create({ userId, products: [] });
     }
 
-    // Filter out deleted products
+    // Lọc bỏ sản phẩm đã xóa
     wishlist.products = wishlist.products.filter(p => p.productId);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       wishlist,
       count: wishlist.products.length
     });
@@ -30,7 +30,7 @@ export const getWishlist = async (req, res) => {
   }
 };
 
-// ✅ ADD TO WISHLIST
+// ✅ THÊM VÀO DANH SÁCH YÊU THÍCH
 export const addToWishlist = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -38,14 +38,14 @@ export const addToWishlist = async (req, res) => {
 
     const product = await Product.findById(productId);
     if (!product) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Không tìm thấy sản phẩm' 
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy sản phẩm'
       });
     }
 
     let wishlist = await Wishlist.findOne({ userId });
-    
+
     if (!wishlist) {
       wishlist = await Wishlist.create({ userId, products: [] });
     }
@@ -58,10 +58,10 @@ export const addToWishlist = async (req, res) => {
 
     await product.incrementWishlistCount();
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       wishlist,
-      message: 'Đã thêm vào danh sách yêu thích' 
+      message: 'Đã thêm vào danh sách yêu thích'
     });
   } catch (err) {
     if (err.message === 'Sản phẩm đã có trong danh sách yêu thích') {
@@ -71,18 +71,18 @@ export const addToWishlist = async (req, res) => {
   }
 };
 
-// ✅ REMOVE FROM WISHLIST
+// ✅ XÓA KHỎI DANH SÁCH YÊU THÍCH
 export const removeFromWishlist = async (req, res) => {
   try {
     const userId = req.user.id;
     const { productId } = req.params;
 
     const wishlist = await Wishlist.findOne({ userId });
-    
+
     if (!wishlist) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Không tìm thấy danh sách yêu thích' 
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy danh sách yêu thích'
       });
     }
 
@@ -97,54 +97,54 @@ export const removeFromWishlist = async (req, res) => {
       await product.decrementWishlistCount();
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       wishlist,
-      message: 'Đã xóa khỏi danh sách yêu thích' 
+      message: 'Đã xóa khỏi danh sách yêu thích'
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// ✅ CHECK IF PRODUCT IN WISHLIST
+// ✅ KIỂM TRA SẢN PHẨM CÓ TRONG DANH SÁCH YÊU THÍCH KHÔNG
 export const checkWishlist = async (req, res) => {
   try {
     const userId = req.user.id;
     const { productId } = req.params;
 
     const wishlist = await Wishlist.findOne({ userId });
-    
+
     if (!wishlist) {
       return res.json({ success: true, inWishlist: false });
     }
 
     const inWishlist = wishlist.hasProduct(productId);
-    
+
     res.json({ success: true, inWishlist });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// ✅ NEW: CHECK MULTIPLE PRODUCTS (Batch check)
+// ✅ MỚI: KIỂM TRA NHIỀU SẢN PHẨM (Kiểm tra hàng loạt)
 export const checkMultipleWishlist = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { productIds } = req.body; // Array of product IDs
+    const { productIds } = req.body; // Mảng các ID sản phẩm
 
     if (!Array.isArray(productIds)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'productIds phải là một mảng' 
+      return res.status(400).json({
+        success: false,
+        message: 'productIds phải là một mảng'
       });
     }
 
     const wishlist = await Wishlist.findOne({ userId });
-    
+
     if (!wishlist) {
-      return res.json({ 
-        success: true, 
+      return res.json({
+        success: true,
         wishlistStatus: productIds.reduce((acc, id) => {
           acc[id] = false;
           return acc;
@@ -157,16 +157,16 @@ export const checkMultipleWishlist = async (req, res) => {
       return acc;
     }, {});
 
-    res.json({ 
-      success: true, 
-      wishlistStatus 
+    res.json({
+      success: true,
+      wishlistStatus
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// ✅ CLEAR ALL WISHLIST
+// ✅ XÓA TẤT CẢ DANH SÁCH YÊU THÍCH
 export const clearWishlist = async (req, res) => {
   try {
     const userId = req.user.id;

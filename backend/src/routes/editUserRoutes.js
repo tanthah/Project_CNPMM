@@ -1,4 +1,4 @@
-// backend/src/routes/editUserRoutes.js
+
 import express from 'express';
 import { getUserProfile, updateUserProfile, uploadAvatar } from '../controllers/userController.js';
 import { authenticateToken } from '../middleware/authMiddleware.js';
@@ -9,22 +9,22 @@ import upload from '../utils/cloudinary.js'; // Import từ cloudinary config
 
 const router = express.Router();
 
-// Routes với Authentication + Authorization + Rate Limiting
+// Routes với Xác thực + Phân quyền + Giới hạn tốc độ
 
 // GET /api/user/profile
 // Chỉ user đã đăng nhập mới xem được profile của chính họ
-router.get('/profile', 
+router.get('/profile',
   apiLimiter,
-  authenticateToken, 
+  authenticateToken,
   isUserOrAdmin,
   getUserProfile
 );
 
 // PUT /api/user/profile
 // Chỉ user đã đăng nhập mới cập nhật được profile của chính họ
-router.put('/profile', 
+router.put('/profile',
   apiLimiter,
-  authenticateToken, 
+  authenticateToken,
   isUserOrAdmin,
   updateProfileValidation,
   updateUserProfile
@@ -32,9 +32,9 @@ router.put('/profile',
 
 // POST /api/user/upload-avatar
 // Chỉ user đã đăng nhập mới upload được avatar của chính họ
-router.post('/upload-avatar', 
+router.post('/upload-avatar',
   uploadLimiter,
-  authenticateToken, 
+  authenticateToken,
   isUserOrAdmin,
   upload.single('avatar'), // Sử dụng Cloudinary upload
   uploadAvatar

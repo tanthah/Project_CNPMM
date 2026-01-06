@@ -1,4 +1,3 @@
-// backend/src/controllers/productController.js - WITH SEARCH
 
 import Product from "../models/Product.js";
 import Review from "../models/Review.js";
@@ -14,10 +13,30 @@ export const getAllProductsWithPagination = async (req, res) => {
         const skip = (page - 1) * limit;
         const sort = req.query.sort || 'newest';
         const search = req.query.search || '';
+        const category = req.query.category || '';
+        const minPrice = parseFloat(req.query.minPrice) || 0;
+        const maxPrice = parseFloat(req.query.maxPrice) || Infinity;
 
-        // Build search query
+        // Xây dựng truy vấn tìm kiếm
         let searchQuery = { isActive: true };
 
+        // ✅ Lọc theo danh mục
+        if (category && category !== 'all') {
+            searchQuery.categoryId = category;
+        }
+
+        // ✅ Lọc theo khoảng giá
+        if (minPrice > 0 || maxPrice < Infinity) {
+            searchQuery.finalPrice = {};
+            if (minPrice > 0) {
+                searchQuery.finalPrice.$gte = minPrice;
+            }
+            if (maxPrice < Infinity && maxPrice < 100000000) {
+                searchQuery.finalPrice.$lte = maxPrice;
+            }
+        }
+
+        // ✅ Tìm kiếm theo từ khóa
         if (search.trim()) {
             searchQuery.$or = [
                 { name: { $regex: search, $options: 'i' } },
@@ -26,7 +45,7 @@ export const getAllProductsWithPagination = async (req, res) => {
             ];
         }
 
-        // Build sort object
+        // Xây dựng đối tượng sắp xếp
         let sortObj = {};
         switch (sort) {
             case 'newest':
@@ -98,10 +117,10 @@ export const searchProducts = async (req, res) => {
 
         const skip = (page - 1) * limit;
 
-        // Build search query
+        // Xây dựng truy vấn tìm kiếm
         let searchQuery = { isActive: true };
 
-        // Text search
+        // Tìm kiếm văn bản
         if (query.trim()) {
             searchQuery.$or = [
                 { name: { $regex: query, $options: 'i' } },
@@ -110,28 +129,28 @@ export const searchProducts = async (req, res) => {
             ];
         }
 
-        // Category filter
+        // Lọc theo danh mục
         if (category) {
             searchQuery.categoryId = category;
         }
 
-        // Price range filter
+        // Lọc theo khoảng giá
         if (minPrice || maxPrice) {
             searchQuery.finalPrice = {};
             if (minPrice) searchQuery.finalPrice.$gte = parseFloat(minPrice);
             if (maxPrice) searchQuery.finalPrice.$lte = parseFloat(maxPrice);
         }
 
-        // Brand filter
+        // Lọc theo thương hiệu
         if (brand) {
             searchQuery.brand = { $regex: brand, $options: 'i' };
         }
 
-        // Build sort
+        // Xây dựng sắp xếp
         let sortObj = {};
         switch (sort) {
             case 'relevance':
-                // Sort by match score (if using text index) or newest
+                // Sắp xếp theo điểm khớp (nếu dùng index văn bản) hoặc mới nhất
                 sortObj = { createdAt: -1 };
                 break;
             case 'price-asc':
@@ -159,7 +178,7 @@ export const searchProducts = async (req, res) => {
             .limit(limit)
             .populate('categoryId', 'name slug');
 
-        // Get filter options
+        // Lấy các tùy chọn lọc
         const categories = await Product.distinct('categoryId', { isActive: true });
         const brands = await Product.distinct('brand', { isActive: true });
         const priceRange = await Product.aggregate([
@@ -295,7 +314,7 @@ export const fuzzySearchProducts = async (req, res) => {
     }
 };
 
-// LẤY TẤT CẢ SẢN PHẨM (Simple - for other uses)
+// LẤY TẤT CẢ SẢN PHẨM (Đơn giản - cho mục đích khác)
 export const getAllProducts = async (req, res) => {
     try {
         const products = await Product.find({ isActive: true }).sort({ createdAt: -1 });
@@ -395,7 +414,7 @@ export const updateProduct = async (req, res) => {
         const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
         if (!product) return res.status(404).json({ success: false, message: "Không tìm thấy sản phẩm" });
 
-        // Real-time update
+        // Cập nhật thời gian thực
         try {
             getIO().emit('product_updated', product);
         } catch (e) {
@@ -427,7 +446,7 @@ export const getSimilarProducts = async (req, res) => {
         const { id } = req.params;
         const limit = parseInt(req.query.limit) || 8;
 
-        // Get current product
+        // Lấy sản phẩm hiện tại
         const currentProduct = await Product.findById(id);
         if (!currentProduct) {
             return res.status(404).json({
@@ -436,13 +455,13 @@ export const getSimilarProducts = async (req, res) => {
             });
         }
 
-        // Find similar products (same category, exclude current product)
+        // Tìm sản phẩm tương tự (cùng danh mục, trừ sản phẩm hiện tại)
         const similarProducts = await Product.find({
             categoryId: currentProduct.categoryId,
             _id: { $ne: id },
             isActive: true
         })
-            .sort({ sold: -1, views: -1 }) // Prioritize best sellers
+            .sort({ sold: -1, views: -1 }) // Ưu tiên bán chạy nhất
             .limit(limit)
             .populate('categoryId', 'name slug');
 
@@ -462,7 +481,7 @@ export const getProductStats = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Check if product exists
+        // Kiểm tra xem sản phẩm có tồn tại không
         const product = await Product.findById(id);
         if (!product) {
             return res.status(404).json({
@@ -471,7 +490,7 @@ export const getProductStats = async (req, res) => {
             });
         }
 
-        // Count unique buyers (users who completed orders with this product)
+        // Đếm số người mua duy nhất (người dùng đã hoàn thành đơn hàng với sản phẩm này)
         const uniqueBuyers = await Order.aggregate([
             {
                 $match: {
@@ -491,13 +510,13 @@ export const getProductStats = async (req, res) => {
 
         const buyerCount = uniqueBuyers.length > 0 ? uniqueBuyers[0].count : 0;
 
-        // Count reviews
+        // Đếm số đánh giá
         const reviewCount = await Review.countDocuments({
             productId: id,
             isHidden: false
         });
 
-        // Count users who reviewed
+        // Đếm số người dùng đã đánh giá
         const uniqueReviewers = await Review.aggregate([
             {
                 $match: {
@@ -536,7 +555,7 @@ export const getProductStats = async (req, res) => {
     }
 };
 
-// ✅ ENHANCED: Get Product Detail with Stats
+// ✅ NÂNG CAO: Lấy chi tiết sản phẩm với thống kê
 export const getProductDetailEnhanced = async (req, res) => {
     try {
         const product = await Product.findById(req.params.id)
@@ -549,11 +568,11 @@ export const getProductDetailEnhanced = async (req, res) => {
             });
         }
 
-        // Increment views
+        // Tăng lượt xem
         product.views += 1;
         await product.save();
 
-        // Get stats
+        // Lấy thống kê
         const uniqueBuyers = await Order.aggregate([
             {
                 $match: {

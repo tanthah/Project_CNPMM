@@ -4,7 +4,6 @@ const faqSchema = new mongoose.Schema(
     {
         category: {
             type: String,
-            enum: ['shipping', 'payment', 'return', 'loyalty', 'account', 'general'],
             required: true
         },
 

@@ -1,4 +1,4 @@
-// backend/src/controllers/faqController.js
+
 import FAQ from '../models/FAQ.js';
 
 /**
@@ -11,7 +11,7 @@ export const getAllFAQs = async (req, res) => {
             .sort({ order: 1 })
             .select('-__v');
 
-        // Group by category
+        // Nhóm theo danh mục
         const groupedFAQs = faqs.reduce((acc, faq) => {
             const category = faq.category;
             if (!acc[category]) {

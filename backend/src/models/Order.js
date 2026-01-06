@@ -1,4 +1,3 @@
-// backend/src/models/Order.js - ENHANCED WITH DETAILED STATUSES
 import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema(
@@ -18,7 +17,16 @@ const orderSchema = new mongoose.Schema(
     shippingFee: Number,
     discount: { type: Number, default: 0 },
 
-    // ✅ ENHANCED STATUS SYSTEM
+    // Thông tin mã giảm giá
+    couponCode: { type: String },
+    couponDiscount: { type: Number, default: 0 },
+    couponId: { type: mongoose.Schema.Types.ObjectId, ref: 'Coupon' },
+
+    //  THÔNG TIN ĐIỂM THƯỞNG
+    usedPoints: { type: Number, default: 0 },   // Điểm đã dùng
+    earnedPoints: { type: Number, default: 0 }, // Điểm tích được
+
+    //  HỆ THỐNG TRẠNG THÁI NÂNG CAO
     status: {
       type: String,
       default: "new",
@@ -33,7 +41,7 @@ const orderSchema = new mongoose.Schema(
       ]
     },
 
-    // ✅ STATUS HISTORY - Track all status changes
+    // LỊCH SỬ TRẠNG THÁI - Theo dõi tất cả thay đổi trạng thái
     statusHistory: [
       {
         status: String,
@@ -53,10 +61,12 @@ const orderSchema = new mongoose.Schema(
     transactionId: String,
     addressId: { type: mongoose.Schema.Types.ObjectId, ref: "Address" },
 
-    notes: String,
+    //  GHI CHÚ
+    notes: String, // Ghi chú của khách hàng
+    internalNote: String, // Ghi chú nội bộ của Admin
     cancelReason: String,
 
-    // ✅ TIMESTAMPS FOR STATUS TRACKING
+    //  MỐC THỜI GIAN THEO DÕI TRẠNG THÁI
     confirmedAt: Date,        // Thời điểm xác nhận
     preparingAt: Date,        // Thời điểm bắt đầu chuẩn bị
     shippingAt: Date,         // Thời điểm bắt đầu giao
@@ -64,7 +74,7 @@ const orderSchema = new mongoose.Schema(
     cancelledAt: Date,        // Thời điểm hủy
     cancelRequestedAt: Date,  // Thời điểm yêu cầu hủy
 
-    // ✅ SHIPPING INFO
+    //  THÔNG TIN GIAO HÀNG
     shippingInfo: {
       shippedAt: Date,
       deliveredAt: Date,
@@ -73,7 +83,7 @@ const orderSchema = new mongoose.Schema(
       estimatedDelivery: Date
     },
 
-    // ✅ CANCELLATION INFO
+    //  THÔNG TIN HỦY ĐƠN
     cancellationInfo: {
       canCancel: { type: Boolean, default: true },
       cancelDeadline: Date,  // 30 phút sau khi đặt
@@ -84,42 +94,42 @@ const orderSchema = new mongoose.Schema(
 
     isReviewed: { type: Boolean, default: false }
   },
-  { 
+  {
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true }
   }
 );
 
-// ✅ VIRTUAL: Check if order can be cancelled
-orderSchema.virtual('canDirectCancel').get(function() {
+//  VIRTUAL: Kiểm tra xem đơn hàng có thể hủy không
+orderSchema.virtual('canDirectCancel').get(function () {
   if (this.status === 'cancelled' || this.status === 'completed') {
     return false;
   }
-  
-  // Allow direct cancel only for 'new' and 'confirmed' status
+
+  // Chỉ cho phép hủy trực tiếp cho trạng thái 'new' và 'confirmed'
   if (this.status === 'new' || this.status === 'confirmed') {
     const now = new Date();
     const orderTime = this.createdAt;
     const timeDiff = (now - orderTime) / 1000 / 60; // minutes
     return timeDiff <= 30;
   }
-  
+
   return false;
 });
 
-// ✅ VIRTUAL: Check if can request cancellation
-orderSchema.virtual('canRequestCancel').get(function() {
+//  VIRTUAL: Kiểm tra xem có thể yêu cầu hủy không
+orderSchema.virtual('canRequestCancel').get(function () {
   return this.status === 'preparing' && this.status !== 'cancel_requested';
 });
 
-// ✅ PRE-SAVE: Set cancel deadline
-orderSchema.pre('save', function(next) {
+// PRE-SAVE: Đặt thời hạn hủy
+orderSchema.pre('save', function (next) {
   if (this.isNew) {
-    // Set cancel deadline to 30 minutes after creation
+    // Đặt thời hạn hủy là 30 phút sau khi tạo
     this.cancellationInfo.cancelDeadline = new Date(this.createdAt.getTime() + 30 * 60 * 1000);
-    
-    // Add initial status to history
+
+    // Thêm trạng thái ban đầu vào lịch sử
     this.statusHistory.push({
       status: 'new',
       timestamp: new Date(),
@@ -130,11 +140,11 @@ orderSchema.pre('save', function(next) {
   next();
 });
 
-// ✅ METHOD: Update status with history
-orderSchema.methods.updateStatus = function(newStatus, note, updatedBy = 'system') {
+// METHOD: Cập nhật trạng thái kèm lịch sử
+orderSchema.methods.updateStatus = function (newStatus, note, updatedBy = 'system') {
   this.status = newStatus;
-  
-  // Update corresponding timestamp
+
+  // Cập nhật mốc thời gian tương ứng
   const timestampMap = {
     'confirmed': 'confirmedAt',
     'preparing': 'preparingAt',
@@ -143,36 +153,36 @@ orderSchema.methods.updateStatus = function(newStatus, note, updatedBy = 'system
     'cancelled': 'cancelledAt',
     'cancel_requested': 'cancelRequestedAt'
   };
-  
+
   if (timestampMap[newStatus]) {
     this[timestampMap[newStatus]] = new Date();
   }
-  
-  // Add to status history
+
+  // Thêm vào lịch sử trạng thái
   this.statusHistory.push({
     status: newStatus,
     timestamp: new Date(),
     note: note || `Chuyển sang trạng thái ${newStatus}`,
     updatedBy
   });
-  
+
   return this.save();
 };
 
-// ✅ STATIC: Auto-confirm orders after 30 minutes
-orderSchema.statics.autoConfirmOrders = async function() {
+// STATIC: Tự động xác nhận đơn hàng sau 30 phút
+orderSchema.statics.autoConfirmOrders = async function () {
   const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
-  
+
   const orders = await this.find({
     status: 'new',
     createdAt: { $lte: thirtyMinutesAgo }
   });
-  
+
   for (const order of orders) {
     await order.updateStatus('confirmed', 'Tự động xác nhận sau 30 phút', 'system');
-    console.log(`✅ Auto-confirmed order: ${order.orderCode}`);
+    console.log(` Auto-confirmed order: ${order.orderCode}`);
   }
-  
+
   return orders.length;
 };
 

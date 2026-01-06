@@ -1,4 +1,4 @@
-// backend/src/routes/categoryRoutes.js
+
 import express from 'express';
 import {
     getAllCategories,
@@ -11,12 +11,12 @@ import {
 
 const router = express.Router();
 
-// Public routes
+// Route công khai
 router.get('/', getAllCategories);
 router.get('/:id', getCategoryDetail);
 router.get('/:id/products', getProductsByCategory);
 
-// Admin routes - TODO: Add authentication middleware
+// Route Admin - TODO: Thêm middleware xác thực
 router.post('/', createCategory);
 router.put('/:id', updateCategory);
 router.delete('/:id', deleteCategory);

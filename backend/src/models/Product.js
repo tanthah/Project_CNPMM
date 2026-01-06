@@ -1,4 +1,3 @@
-// backend/src/models/Product.js - ENHANCED
 import mongoose from "mongoose";
 import "./Category.js";
 
@@ -15,12 +14,12 @@ const productSchema = new mongoose.Schema(
     stock: { type: Number, default: 0 },
     sold: { type: Number, default: 0 },
     views: { type: Number, default: 0 },
-    
-    // ✅ ENHANCED: Review & Rating stats
+
+    // NÂNG CAO: Thống kê Đánh giá & Xếp hạng
     rating: { type: Number, default: 0, min: 0, max: 5 },
     numReviews: { type: Number, default: 0 },
-    
-    // Rating breakdown
+
+    // Chi tiết xếp hạng
     ratingBreakdown: {
       1: { type: Number, default: 0 },
       2: { type: Number, default: 0 },
@@ -28,11 +27,10 @@ const productSchema = new mongoose.Schema(
       4: { type: Number, default: 0 },
       5: { type: Number, default: 0 }
     },
-    
-    // ✅ NEW: Customer engagement stats
+
+    // MỚI: Thống kê tương tác khách hàng
     wishlistCount: { type: Number, default: 0 },
     reviewCount: { type: Number, default: 0 },
-    purchaseCount: { type: Number, default: 0 },
 
     images: [String],
     categoryId: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
@@ -41,20 +39,20 @@ const productSchema = new mongoose.Schema(
     isActive: { type: Boolean, default: true },
     promotionText: String
   },
-  { 
+  {
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true }
   }
 );
 
-// Virtual: Similar products (same category)
+// Virtual: Sản phẩm tương tự (cùng danh mục)
 productSchema.virtual('similarProducts', {
   ref: 'Product',
   localField: 'categoryId',
   foreignField: 'categoryId',
-  match: function() {
-    return { 
+  match: function () {
+    return {
       _id: { $ne: this._id },
       isActive: true
     };
@@ -62,22 +60,22 @@ productSchema.virtual('similarProducts', {
   options: { limit: 8, sort: { sold: -1 } }
 });
 
-// Auto calculate finalPrice
+// Tự động tính giá cuối cùng
 productSchema.pre("save", function (next) {
   this.finalPrice = this.price - (this.price * this.discount) / 100;
   next();
 });
 
-// Method: Update rating from reviews
-productSchema.methods.updateRatingFromReviews = async function() {
+// Phương thức: Cập nhật xếp hạng từ đánh giá
+productSchema.methods.updateRatingFromReviews = async function () {
   const Review = mongoose.model('Review');
-  
+
   const stats = await Review.aggregate([
-    { 
-      $match: { 
+    {
+      $match: {
         productId: this._id,
         isHidden: false
-      } 
+      }
     },
     {
       $group: {
@@ -92,10 +90,10 @@ productSchema.methods.updateRatingFromReviews = async function() {
       }
     }
   ]);
-  
+
   if (stats.length > 0) {
     const { avgRating, totalReviews, rating1, rating2, rating3, rating4, rating5 } = stats[0];
-    
+
     this.rating = Math.round(avgRating * 10) / 10;
     this.numReviews = totalReviews;
     this.ratingBreakdown = {
@@ -110,18 +108,18 @@ productSchema.methods.updateRatingFromReviews = async function() {
     this.numReviews = 0;
     this.ratingBreakdown = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   }
-  
+
   await this.save();
 };
 
-// Method: Increment wishlist count
-productSchema.methods.incrementWishlistCount = function() {
+// Phương thức: Tăng số lượt yêu thích
+productSchema.methods.incrementWishlistCount = function () {
   this.wishlistCount += 1;
   return this.save();
 };
 
-// Method: Decrement wishlist count
-productSchema.methods.decrementWishlistCount = function() {
+// Phương thức: Giảm số lượt yêu thích
+productSchema.methods.decrementWishlistCount = function () {
   if (this.wishlistCount > 0) {
     this.wishlistCount -= 1;
     return this.save();
