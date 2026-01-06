@@ -51,18 +51,18 @@ export default function SimilarProductsSection({ productId }) {
         {!loading && !error && similarProducts.length > 0 && (
           <Row className="g-3">
             {similarProducts.map(p => (
-              <Col key={p._id} xs={6} md={3}>
-                <Card 
-                  className="h-100 product-card-small" 
+              <Col key={p._id} lg={3} md={4} xs={6}>
+                <Card
+                  className="h-100 product-card-small"
                   style={{ cursor: 'pointer' }}
                   onClick={() => {
                     navigate(`/product/${p._id}`)
                     window.scrollTo(0, 0)
                   }}
                 >
-                  <Card.Img 
-                    variant="top" 
-                    src={p.images[0]} 
+                  <Card.Img
+                    variant="top"
+                    src={p.images[0]}
                     style={{ height: '200px', objectFit: 'cover' }}
                   />
                   <Card.Body>

@@ -1,4 +1,4 @@
-// backend/src/routes/registerRoutes.js
+
 import express from "express";
 import {
   sendRegisterOtp,
@@ -6,14 +6,14 @@ import {
   completeRegistration
 } from '../controllers/registerController.js';
 
-// Import validators
+// Import các validator
 import {
   sendRegisterOtpValidation,
   verifyOtpValidation,
   completeRegisterValidation
 } from '../middleware/validators.js';
 
-// Import rate limiters
+// Import bộ giới hạn tốc độ
 import {
   registerLimiter,
   otpLimiter,
@@ -21,26 +21,26 @@ import {
   uploadLimiter
 } from '../middleware/rateLimiter.js';
 
-// Import Cloudinary upload
+// Import upload Cloudinary
 import upload from '../utils/cloudinary.js';
 
 const router = express.Router();
 
-// SEND OTP FOR REGISTRATION
+// GỬI OTP ĐỂ ĐĂNG KÝ
 router.post("/send-register-otp",
   otpLimiter,
   sendRegisterOtpValidation,
   sendRegisterOtp
 );
 
-// VERIFY OTP
+// XÁC THỰC OTP
 router.post("/verify-register-otp",
   verifyOtpLimiter,
   verifyOtpValidation,
   verifyRegisterOtp
 );
 
-// COMPLETE REGISTRATION (WITH OPTIONAL AVATAR UPLOAD)
+// HOÀN TẤT ĐĂNG KÝ (VỚI UPLOAD AVATAR TÙY CHỌN)
 router.post("/complete-register",
   registerLimiter,
   uploadLimiter,

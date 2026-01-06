@@ -7,6 +7,8 @@ const commentApi = {
 
   createComment: (data) => axios.post('/comments/create', data),
 
+  toggleLike: (commentId) => axios.put(`/comments/${commentId}/like`),
+
   deleteComment: (commentId) => axios.delete(`/comments/${commentId}`)
 }
 

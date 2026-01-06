@@ -30,7 +30,7 @@ const notificationSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now,
-        expires: 60 * 60 * 24 * 30 // Auto delete after 30 days
+        expires: 60 * 60 * 24 * 30 // Tự động xóa sau 30 ngày
     }
 });
 

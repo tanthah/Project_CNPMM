@@ -10,3 +10,7 @@ export const getFAQById = async (id) => {
     const response = await axios.get(`/faqs/${id}`);
     return response.data;
 };
+export const getCategories = async () => {
+    const response = await axios.get('/faq-categories');
+    return response.data;
+};

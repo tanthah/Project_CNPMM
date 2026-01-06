@@ -1,12 +1,37 @@
-// backend/src/controllers/couponController.js
+
 import { Coupon } from '../models/Coupon.js';
 import Order from '../models/Order.js';
 
-// ✅ GET USER COUPONS
+//  LẤY MÃ GIẢM GIÁ CÔNG KHAI (Cho Trang Mã giảm giá)
+export const getPublicCoupons = async (req, res) => {
+  try {
+    const now = new Date();
+    const query = {
+      userId: null, // Chỉ mã giảm giá công khai
+      isActive: true,
+      expiryDate: { $gt: now },
+      $or: [
+        { maxUses: null },
+        { $expr: { $lt: ['$usedCount', '$maxUses'] } }
+      ]
+    };
+
+    const coupons = await Coupon.find(query).sort({ expiryDate: 1 }); // Sắp xếp theo ngày hết hạn (sớm nhất trước)
+
+    res.json({
+      success: true,
+      coupons
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// LẤY MÃ GIẢM GIÁ CỦA USER
 export const getUserCoupons = async (req, res) => {
   try {
     const userId = req.user.id;
-    const status = req.query.status || 'active'; // active, expired, used
+    const status = req.query.status || 'active'; // active (hoạt động), expired (hết hạn), used (đã dùng)
 
     const now = new Date();
     let query = { userId };
@@ -26,8 +51,8 @@ export const getUserCoupons = async (req, res) => {
 
     const coupons = await Coupon.find(query).sort({ createdAt: -1 });
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       coupons,
       count: coupons.length
     });
@@ -36,42 +61,42 @@ export const getUserCoupons = async (req, res) => {
   }
 };
 
-// ✅ VALIDATE COUPON
+//  KIỂM TRA MÃ GIẢM GIÁ
 export const validateCoupon = async (req, res) => {
   try {
     const userId = req.user.id;
     const { code, orderValue } = req.body;
 
-    const coupon = await Coupon.findOne({ 
+    const coupon = await Coupon.findOne({
       code: code.toUpperCase(),
       $or: [
-        { userId: null }, // Public coupons
-        { userId }       // User-specific coupons
+        { userId: null }, // Mã giảm giá công khai
+        { userId }       // Mã giảm giá dành riêng cho user
       ]
     });
 
     if (!coupon) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Mã giảm giá không tồn tại' 
+      return res.status(404).json({
+        success: false,
+        message: 'Mã giảm giá không tồn tại'
       });
     }
 
-    // Check if coupon is valid
+    // Kiểm tra xem mã giảm giá có hợp lệ không
     const validation = coupon.isValid(orderValue);
-    
+
     if (!validation.valid) {
-      return res.status(400).json({ 
-        success: false, 
-        message: validation.message 
+      return res.status(400).json({
+        success: false,
+        message: validation.message
       });
     }
 
-    // Calculate discount
+    // Tính toán giảm giá
     const discount = coupon.calculateDiscount(orderValue);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       valid: true,
       coupon: {
         code: coupon.code,
@@ -80,16 +105,16 @@ export const validateCoupon = async (req, res) => {
         discount,
         finalAmount: orderValue - discount
       },
-      message: 'Mã giảm giá hợp lệ' 
+      message: 'Mã giảm giá hợp lệ'
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// ✅ APPLY COUPON TO ORDER (called during order creation)
+// ÁP DỤNG MÃ GIẢM GIÁ VÀO ĐƠN HÀNG (được gọi khi tạo đơn hàng)
 export const applyCouponToOrder = async (couponCode, userId, orderValue) => {
-  const coupon = await Coupon.findOne({ 
+  const coupon = await Coupon.findOne({
     code: couponCode.toUpperCase(),
     $or: [
       { userId: null },
@@ -102,14 +127,14 @@ export const applyCouponToOrder = async (couponCode, userId, orderValue) => {
   }
 
   const validation = coupon.isValid(orderValue);
-  
+
   if (!validation.valid) {
     throw new Error(validation.message);
   }
 
   const discount = coupon.calculateDiscount(orderValue);
 
-  // Increment used count
+  // Tăng số lượng đã sử dụng
   coupon.usedCount += 1;
   await coupon.save();
 
@@ -119,35 +144,35 @@ export const applyCouponToOrder = async (couponCode, userId, orderValue) => {
   };
 };
 
-// ✅ ADMIN: Create public coupon
+// ADMIN: Tạo mã giảm giá công khai
 export const createCoupon = async (req, res) => {
   try {
     const couponData = req.body;
 
-    // Generate unique code if not provided
+    // Tạo mã duy nhất nếu chưa được cung cấp
     if (!couponData.code) {
       couponData.code = `PROMO${Date.now()}`;
     }
 
     const coupon = await Coupon.create(couponData);
 
-    res.status(201).json({ 
-      success: true, 
+    res.status(201).json({
+      success: true,
       coupon,
-      message: 'Tạo mã giảm giá thành công' 
+      message: 'Tạo mã giảm giá thành công'
     });
   } catch (err) {
     if (err.code === 11000) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Mã giảm giá đã tồn tại' 
+      return res.status(400).json({
+        success: false,
+        message: 'Mã giảm giá đã tồn tại'
       });
     }
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// ✅ ADMIN: Get all coupons
+// ADMIN: Lấy tất cả mã giảm giá
 export const getAllCoupons = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -155,15 +180,15 @@ export const getAllCoupons = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const totalCoupons = await Coupon.countDocuments();
-    
+
     const coupons = await Coupon.find()
       .populate('userId', 'name email')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       coupons,
       pagination: {
         currentPage: page,
@@ -176,36 +201,36 @@ export const getAllCoupons = async (req, res) => {
   }
 };
 
-// ✅ ADMIN: Update coupon
+//  ADMIN: Cập nhật mã giảm giá
 export const updateCoupon = async (req, res) => {
   try {
     const { couponId } = req.params;
     const updates = req.body;
 
     const coupon = await Coupon.findByIdAndUpdate(
-      couponId, 
-      updates, 
+      couponId,
+      updates,
       { new: true, runValidators: true }
     );
 
     if (!coupon) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Không tìm thấy mã giảm giá' 
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy mã giảm giá'
       });
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       coupon,
-      message: 'Cập nhật mã giảm giá thành công' 
+      message: 'Cập nhật mã giảm giá thành công'
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// ✅ ADMIN: Delete coupon
+//  ADMIN: Xóa mã giảm giá
 export const deleteCoupon = async (req, res) => {
   try {
     const { couponId } = req.params;
@@ -213,15 +238,15 @@ export const deleteCoupon = async (req, res) => {
     const coupon = await Coupon.findByIdAndDelete(couponId);
 
     if (!coupon) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Không tìm thấy mã giảm giá' 
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy mã giảm giá'
       });
     }
 
-    res.json({ 
-      success: true, 
-      message: 'Xóa mã giảm giá thành công' 
+    res.json({
+      success: true,
+      message: 'Xóa mã giảm giá thành công'
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

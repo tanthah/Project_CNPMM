@@ -38,14 +38,14 @@ export const login = createAsyncThunk(
     try {
       const resp = await axios.post('/auth/login', { email, password })
       const data = resp.data
-      
+
       if (data.token) {
         localStorage.setItem('token', data.token)
       }
       if (data.user) {
         saveUserToStorage(data.user)
       }
-      
+
       return data
     } catch (err) {
       const message = err?.response?.data?.message || err.message || 'Login failed'
@@ -96,6 +96,34 @@ export const resetPassword = createAsyncThunk(
   }
 )
 
+// ✅ Logout thunk - calls backend API to blacklist token
+export const logoutAsync = createAsyncThunk(
+  'auth/logoutAsync',
+  async (_, { rejectWithValue }) => {
+    // Check if token exists before calling API to prevent 400 Bad Request
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.log('ℹ️ No token found, skipping backend logout');
+      return { success: true };
+    }
+
+    try {
+      console.log('🚪 Calling logout API with token:', token.substring(0, 10) + '...')
+      await axios.post('/auth/logout', {}, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      console.log('✅ Token added to blacklist')
+      return { success: true }
+    } catch (err) {
+      console.log('⚠️ Logout API error (continuing anyway):', err.message)
+      // Even if API fails, we still want to logout locally
+      return { success: true }
+    }
+  }
+)
+
 const initialState = {
   token: typeof window !== 'undefined' ? localStorage.getItem('token') : null,
   user: typeof window !== 'undefined' ? loadUserFromStorage() : null,
@@ -129,6 +157,20 @@ const slice = createSlice({
     updateUser(state, action) {
       state.user = { ...state.user, ...action.payload }
       saveUserToStorage(state.user)
+    },
+    // Google OAuth - set credentials manually
+    setCredentials(state, action) {
+      const { token, user } = action.payload
+      state.token = token
+      state.user = user
+      state.loading = false
+      state.error = null
+      if (token) {
+        localStorage.setItem('token', token)
+      }
+      if (user) {
+        saveUserToStorage(user)
+      }
     },
   },
   extraReducers(builder) {
@@ -189,8 +231,20 @@ const slice = createSlice({
         state.loading = false
         state.error = action.payload || action.error.message
       })
+      // ✅ Logout Async Handler
+      .addCase(logoutAsync.fulfilled, (state) => {
+        console.log('🚪 Logout fulfilled - clearing state')
+        state.token = null
+        state.user = null
+        state.error = null
+        state.otpSent = false
+        state.otpVerified = false
+        state.resetSuccess = false
+        state.loading = false
+        removeUserFromStorage()
+      })
   },
 })
 
-export const { logout, clearForgotPasswordState, updateUser } = slice.actions
+export const { logout, clearForgotPasswordState, updateUser, setCredentials } = slice.actions
 export default slice.reducer

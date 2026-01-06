@@ -8,7 +8,7 @@ import {
   fetchMostViewed,
   fetchTopDiscounts
 } from '../redux/productSlice'
-import { logout } from '../redux/authSlice'
+import { logoutAsync } from '../redux/authSlice'
 import ProductSection from '../components/ProductSection'
 import './css/Dashboard.css'
 
@@ -28,7 +28,7 @@ export default function Dashboard() {
   }, [dispatch])
 
   const handleLogout = () => {
-    dispatch(logout())
+    dispatch(logoutAsync())
     navigate('/login')
   }
 

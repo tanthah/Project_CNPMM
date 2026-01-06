@@ -10,6 +10,9 @@ export default function ProductCard({ product }) {
         navigate(`/product/${product._id}`)
     }
 
+    // Safe guard for null product
+    if (!product) return null;
+
     // Get first image or placeholder
     const imageUrl = product.images && product.images.length > 0
         ? product.images[0]

@@ -1,8 +1,9 @@
 // frontend/src/pages/Home.jsx - UPDATED VERSION
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Container, Alert, Row, Col, Card } from 'react-bootstrap'
 import { useDispatch, useSelector } from 'react-redux'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import axios from 'axios'
 import {
   fetchLatestProducts,
   fetchBestSellers,
@@ -17,6 +18,11 @@ import './css/Home.css'
 export default function Home() {
   const dispatch = useDispatch()
   const location = useLocation()
+  const navigate = useNavigate() // Add navigation
+
+  const [email, setEmail] = useState('')
+  const [subLoading, setSubLoading] = useState(false)
+  const [subMessage, setSubMessage] = useState(null)
 
   const { latest, bestSellers, mostViewed, topDiscounts, loading, error } = useSelector((s) => s.products)
 
@@ -27,6 +33,21 @@ export default function Home() {
     dispatch(fetchMostViewed())
     dispatch(fetchTopDiscounts())
   }, [dispatch])
+
+  const handleSubscribe = async () => {
+    if (!email) return;
+    setSubLoading(true);
+    setSubMessage(null);
+    try {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/subscribe`, { email });
+      setSubMessage({ type: 'success', text: res.data.message });
+      setEmail('');
+    } catch (error) {
+      setSubMessage({ type: 'error', text: error.response?.data?.message || 'Có lỗi xảy ra' });
+    } finally {
+      setSubLoading(false);
+    }
+  };
 
   const features = [
     {
@@ -40,25 +61,13 @@ export default function Home() {
       description: 'Miễn phí vận chuyển cho đơn từ 500K'
     },
     {
-      icon: 'bi-credit-card',
-      title: 'Trả góp 0%',
-      description: 'Hỗ trợ trả góp lãi suất 0%'
-    },
-    {
       icon: 'bi-arrow-repeat',
       title: 'Đổi trả dễ dàng',
       description: 'Đổi trả trong vòng 15 ngày'
     }
   ];
 
-  const brands = [
-    { name: 'Apple', logo: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg' },
-    { name: 'Samsung', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/24/Samsung_Logo.svg' },
-    { name: 'Xiaomi', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/29/Xiaomi_logo.svg' },
-    { name: 'Oppo', logo: 'https://upload.wikimedia.org/wikipedia/commons/9/9d/OPPO_LOGO_2019.svg' },
-    { name: 'Asus', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2e/ASUS_Logo.svg' },
-    { name: 'Dell', logo: 'https://upload.wikimedia.org/wikipedia/commons/4/48/Dell_Logo.svg' }
-  ];
+
 
   return (
     <div className="home-page">
@@ -70,10 +79,7 @@ export default function Home() {
           <Container>
             <div className="hero-content text-center py-5">
               <div className="hero-badge mb-3">
-                <span className="badge bg-white text-primary rounded-pill px-3 py-2 shadow-sm">
-                  <i className="bi bi-stars me-2"></i>
-                  Bộ sưu tập Mùa Hè 2025
-                </span>
+
               </div>
               <h1 className="display-3 fw-bold mb-4">
                 Chào mừng đến với <span className="text-gradient">TV Shop</span>
@@ -82,11 +88,17 @@ export default function Home() {
                 Khám phá hàng ngàn sản phẩm công nghệ chất lượng cao với mức giá ưu đãi nhất dành cho sinh viên.
               </p>
               <div className="d-flex justify-content-center gap-3 flex-wrap">
-                <button className="btn btn-light btn-lg rounded-pill px-5 fw-bold shadow-lg hover-scale">
+                <button
+                  className="btn btn-light btn-lg rounded-pill px-5 fw-bold shadow-lg hover-scale"
+                  onClick={() => document.getElementById('search-input')?.focus()}
+                >
                   <i className="bi bi-search me-2"></i>
                   Khám phá ngay
                 </button>
-                <button className="btn btn-outline-light btn-lg rounded-pill px-5 fw-bold hover-scale">
+                <button
+                  className="btn btn-outline-light btn-lg rounded-pill px-5 fw-bold hover-scale"
+                  onClick={() => navigate('/coupons')}
+                >
                   <i className="bi bi-percent me-2"></i>
                   Xem khuyến mãi
                 </button>
@@ -102,7 +114,7 @@ export default function Home() {
           <Container>
             <Row>
               {features.map((feature, idx) => (
-                <Col key={idx} md={3} sm={6} className="mb-4">
+                <Col key={idx} lg={4} md={6} xs={12} className="mb-4">
                   <Card className="feature-card border-0 shadow-sm h-100">
                     <Card.Body className="text-center p-4">
                       <div className="feature-icon mb-3">
@@ -165,22 +177,7 @@ export default function Home() {
         </Container>
 
         {/* Brands Section */}
-        <section className="brands-section">
-          <Container>
-            <h2 className="text-center mb-5">
-              <span className="section-badge">Thương hiệu nổi bật</span>
-            </h2>
-            <Row className="justify-content-center">
-              {brands.map((brand, idx) => (
-                <Col key={idx} xs={4} md={2} className="mb-4">
-                  <div className="brand-logo">
-                    <img src={brand.logo} alt={brand.name} />
-                  </div>
-                </Col>
-              ))}
-            </Row>
-          </Container>
-        </section>
+
 
         {/* Newsletter Section */}
         <section className="newsletter-section">
@@ -198,12 +195,27 @@ export default function Home() {
                       type="email"
                       className="form-control form-control-lg"
                       placeholder="Nhập email của bạn..."
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                     />
-                    <button className="btn btn-primary btn-lg px-4">
-                      <i className="bi bi-send me-2"></i>
+                    <button
+                      className="btn btn-primary btn-lg px-4"
+                      onClick={handleSubscribe}
+                      disabled={subLoading}
+                    >
+                      {subLoading ? (
+                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      ) : (
+                        <i className="bi bi-send me-2"></i>
+                      )}
                       Đăng ký
                     </button>
                   </div>
+                  {subMessage && (
+                    <div className={`mt-3 ${subMessage.type === 'success' ? 'text-success' : 'text-danger'} fw-bold`}>
+                      {subMessage.text}
+                    </div>
+                  )}
                 </div>
               </Col>
             </Row>

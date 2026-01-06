@@ -17,7 +17,7 @@ import {
     faStar, faUserCog, faLock, faMoneyBill, faMobileAlt, faShieldAlt, faKey,
     faCheckCircle, faUserPlus, faPaperPlane
 } from '@fortawesome/free-solid-svg-icons';
-import './ChatWidget.css';
+import './css/ChatWidget.css';
 import io from 'socket.io-client';
 
 const ChatWidget = () => {
@@ -36,50 +36,75 @@ const ChatWidget = () => {
         type: 'bot',
         content: (
             <div>
-                <p>Chào mừng bạn đến với Trợ lý ảo UTE SHOP.</p>
+                <p>Chào mừng bạn đến với Trợ lý ảo TV Shop.</p>
                 <p>Trước tiên, vui lòng chọn loại dịch vụ bạn yêu cầu.</p>
             </div>
         ),
         timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     };
 
-    useEffect(() => {
-        loadFAQs();
+    const [categories, setCategories] = useState([]);
 
-        // Connect Socket
-        socket.current = io('http://localhost:4000');
+    // ... (keep useEffect for socket)
+
+    useEffect(() => {
+        loadData();
+
+        // Initialize Socket.IO connection
+        socket.current = io('http://localhost:5000', {
+            transports: ['websocket', 'polling']
+        });
 
         socket.current.on('connect', () => {
-            console.log('Connected to socket server');
+            console.log('ChatWidget connected to socket server');
         });
 
         socket.current.on('receive_message', (data) => {
-            const msg = {
-                type: data.from === 'user' ? 'user' : 'bot',
-                content: data.message,
-                timestamp: new Date(data.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-            };
-            setMessages(prev => [...prev, msg]);
+            // Only handle messages from others/server
+            if (data.sender !== 'client') {
+                const botMsg = {
+                    type: 'bot',
+                    content: data.message,
+                    timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                };
+                setMessages(prev => [...prev, botMsg]);
+            }
         });
 
         return () => {
-            if (socket.current) socket.current.disconnect();
+            if (socket.current) {
+                socket.current.disconnect();
+            }
         };
     }, []);
 
-    // Scroll to bottom when messages change
-    useEffect(() => {
-        if (chatBodyRef.current) {
-            chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
-        }
-    }, [messages, isOpen]);
-
-    const loadFAQs = async () => {
+    const loadData = async () => {
         try {
             setLoading(true);
-            const response = await faqApi.getAllFAQs();
-            const fetchedFaqs = response.faqs || {};
+            const [faqsRes, catsRes] = await Promise.all([
+                faqApi.getAllFAQs(),
+                faqApi.getCategories()
+            ]);
+
+            const fetchedFaqs = faqsRes.faqs || {};
             setFaqs(fetchedFaqs);
+
+            // API returns { success: true, categories: [...] }
+            // So catsRes (response.data) contains .categories
+            const catsArray = (catsRes && Array.isArray(catsRes.categories)) ? catsRes.categories : [];
+            setCategories(catsArray);
+
+            // Create a map for easy lookup
+            const catMap = {};
+            catsArray.forEach(cat => {
+                catMap[cat.slug] = { label: cat.name, icon: faGlobe }; // Default icon
+                // If you want specific icons, you might need to map based on slug keyword or add icon field in DB
+                if (cat.slug === 'shipping') catMap[cat.slug].icon = faTruck;
+                else if (cat.slug === 'payment') catMap[cat.slug].icon = faCreditCard;
+                else if (cat.slug === 'return') catMap[cat.slug].icon = faBoxOpen;
+                else if (cat.slug === 'loyalty') catMap[cat.slug].icon = faGift;
+                else if (cat.slug === 'account') catMap[cat.slug].icon = faUser;
+            });
 
             // Construct Main Menu Message locally to use fresh data
             const menuMsg = {
@@ -91,9 +116,9 @@ const ChatWidget = () => {
                             <button
                                 key={catKey}
                                 className="option-button"
-                                onClick={() => handleCategoryClick(catKey, fetchedFaqs)}
+                                onClick={() => handleCategoryClick(catKey, fetchedFaqs, catMap)}
                             >
-                                {categoryNames[catKey]?.label || catKey}
+                                {catMap[catKey]?.label || catKey}
                             </button>
                         )) : <p>Đang tải danh mục...</p>}
                         <button className="option-button" onClick={handleLiveChatClick}>
@@ -104,23 +129,15 @@ const ChatWidget = () => {
                 timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
             };
 
-            // Set initial message
             setMessages([greetingMessage, menuMsg]);
         } catch (error) {
-            console.error('Error loading FAQs:', error);
+            console.error('Error loading data:', error);
         } finally {
             setLoading(false);
         }
     };
 
-    const categoryNames = {
-        shipping: { label: 'Vận chuyển', icon: faTruck },
-        payment: { label: 'Thanh toán', icon: faCreditCard },
-        return: { label: 'Đổi trả & Bảo hành', icon: faBoxOpen },
-        loyalty: { label: 'Tích điểm & Ưu đãi', icon: faGift },
-        account: { label: 'Tài khoản', icon: faUser },
-        general: { label: 'Dịch vụ chung', icon: faGlobe }
-    };
+    // Removed hardcoded categoryNames
 
     const iconMap = {
         'fa-phone': faPhone,
@@ -168,8 +185,17 @@ const ChatWidget = () => {
         });
     };
 
-    const handleCategoryClick = (category, overrideFaqs = null) => {
-        const categoryLabel = categoryNames[category]?.label || category;
+    const handleCategoryClick = (category, overrideFaqs = null, catMap = null) => {
+        let categoryLabel = category;
+        if (catMap && catMap[category]) {
+            categoryLabel = catMap[category].label;
+        } else {
+            // Fallback if catMap not passed (e.g. from existing buttons if any? No, only new buttons)
+            // Try to find in current categories state
+            const found = categories.find(c => c.slug === category);
+            if (found) categoryLabel = found.name;
+        }
+
         const currentFaqs = overrideFaqs || faqs;
         const categoryQuestions = currentFaqs[category] || [];
 
@@ -299,7 +325,7 @@ const ChatWidget = () => {
 
                             </div>
                             <div>
-                                <h3 className="mb-0" style={{ fontSize: '16px', fontWeight: 'bold' }}>UTE Support</h3>
+                                <h3 className="mb-0" style={{ fontSize: '16px', fontWeight: 'bold' }}>TV Shop Support</h3>
                                 <small style={{ fontSize: '11px', opacity: 0.9 }}>Luôn sẵn sàng hỗ trợ</small>
                             </div>
                         </div>

@@ -1,4 +1,4 @@
-// backend/src/controllers/cartController.js - FIXED
+
 import Cart from '../models/Cart.js';
 import Product from '../models/Product.js';
 
@@ -6,9 +6,9 @@ import Product from '../models/Product.js';
 export const getCart = async (req, res) => {
     try {
         const userId = req.user.id;
-        
+
         let cart = await Cart.findOne({ userId }).populate('items.productId');
-        
+
         if (!cart) {
             cart = await Cart.create({ userId, items: [] });
         }
@@ -57,11 +57,11 @@ export const addToCart = async (req, res) => {
         if (existingItemIndex > -1) {
             // Cập nhật số lượng
             cart.items[existingItemIndex].quantity += quantity;
-            
+
             if (cart.items[existingItemIndex].quantity > product.stock) {
-                return res.status(400).json({ 
-                    success: false, 
-                    message: 'Vượt quá số lượng tồn kho' 
+                return res.status(400).json({
+                    success: false,
+                    message: 'Vượt quá số lượng tồn kho'
                 });
             }
         } else {
@@ -89,7 +89,7 @@ export const addToCart = async (req, res) => {
     }
 };
 
-// CẬP NHẬT SỐ LƯỢNG - FIXED
+// CẬP NHẬT SỐ LƯỢNG - ĐÃ SỬA
 export const updateCartItem = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -113,7 +113,7 @@ export const updateCartItem = async (req, res) => {
         const itemIndex = cart.items.findIndex(
             item => item.productId.toString() === productId.toString()
         );
-        
+
         if (itemIndex === -1) {
             return res.status(404).json({ success: false, message: 'Sản phẩm không có trong giỏ hàng' });
         }
@@ -124,9 +124,9 @@ export const updateCartItem = async (req, res) => {
         }
 
         if (quantity > product.stock) {
-            return res.status(400).json({ 
-                success: false, 
-                message: `Chỉ còn ${product.stock} sản phẩm trong kho` 
+            return res.status(400).json({
+                success: false,
+                message: `Chỉ còn ${product.stock} sản phẩm trong kho`
             });
         }
 

@@ -1,7 +1,6 @@
-// backend/src/controllers/viewedProductController.js
 import { ViewedProduct } from '../models/ViewedProduct.js';
 
-// ✅ TRACK PRODUCT VIEW
+// ✅ THEO DÕI LƯỢT XEM SẢN PHẨM
 export const trackView = async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -19,7 +18,7 @@ export const trackView = async (req, res) => {
   }
 };
 
-// ✅ GET VIEWED PRODUCTS
+// ✅ LẤY SẢN PHẨM ĐÃ XEM
 export const getViewedProducts = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -33,7 +32,7 @@ export const getViewedProducts = async (req, res) => {
         select: 'name images price finalPrice discount stock rating numReviews'
       });
 
-    // Filter out deleted products
+    // Lọc bỏ sản phẩm đã xóa
     const products = viewedProducts
       .filter(vp => vp.productId)
       .map(vp => ({
@@ -42,8 +41,8 @@ export const getViewedProducts = async (req, res) => {
         lastViewedAt: vp.lastViewedAt
       }));
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       products,
       count: products.length
     });
@@ -52,23 +51,23 @@ export const getViewedProducts = async (req, res) => {
   }
 };
 
-// ✅ CLEAR VIEWED HISTORY
+// ✅ XÓA LỊCH SỬ ĐÃ XEM
 export const clearViewedHistory = async (req, res) => {
   try {
     const userId = req.user.id;
 
     await ViewedProduct.deleteMany({ userId });
 
-    res.json({ 
-      success: true, 
-      message: 'Đã xóa lịch sử xem sản phẩm' 
+    res.json({
+      success: true,
+      message: 'Đã xóa lịch sử xem sản phẩm'
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// ✅ REMOVE A SINGLE VIEWED PRODUCT
+// ✅ XÓA MỘT SẢN PHẨM ĐÃ XEM
 export const removeViewedProduct = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -77,15 +76,15 @@ export const removeViewedProduct = async (req, res) => {
     const result = await ViewedProduct.deleteOne({ userId, productId });
 
     if (result.deletedCount === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Không tìm thấy mục đã xem để xóa' 
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy mục đã xem để xóa'
       });
     }
 
-    res.json({ 
-      success: true, 
-      message: 'Đã xóa sản phẩm khỏi lịch sử đã xem' 
+    res.json({
+      success: true,
+      message: 'Đã xóa sản phẩm khỏi lịch sử đã xem'
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

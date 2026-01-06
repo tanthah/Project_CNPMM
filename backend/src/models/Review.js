@@ -1,22 +1,21 @@
-// backend/src/models/Review.js - ENHANCED
 import mongoose from "mongoose";
 
 const reviewSchema = new mongoose.Schema(
   {
-    userId: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: "User", 
-      required: true 
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
     },
-    productId: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: "Product", 
-      required: true 
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: true
     },
-    orderId: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: "Order", 
-      required: true 
+    orderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Order",
+      required: true
     },
 
     rating: {
@@ -44,21 +43,21 @@ const reviewSchema = new mongoose.Schema(
     },
 
     // Trạng thái
-    isVerifiedPurchase: { 
-      type: Boolean, 
-      default: true 
+    isVerifiedPurchase: {
+      type: Boolean,
+      default: true
     },
-    
+
     // Helpful votes
-    helpfulCount: { 
-      type: Number, 
-      default: 0 
+    helpfulCount: {
+      type: Number,
+      default: 0
     },
-    
+
     // Hidden by admin
-    isHidden: { 
-      type: Boolean, 
-      default: false 
+    isHidden: {
+      type: Boolean,
+      default: false
     }
   },
   { timestamps: true }
@@ -71,8 +70,8 @@ reviewSchema.index({ userId: 1, productId: 1, orderId: 1 }, { unique: true });
 reviewSchema.index({ productId: 1, createdAt: -1 });
 reviewSchema.index({ userId: 1, createdAt: -1 });
 
-// Method: Check if user can review this product
-reviewSchema.statics.canUserReview = async function(userId, productId, orderId) {
+// Phương thức: Kiểm tra user có thể đánh giá sản phẩm này không
+reviewSchema.statics.canUserReview = async function (userId, productId, orderId) {
   const existingReview = await this.findOne({ userId, productId, orderId });
   return !existingReview;
 };

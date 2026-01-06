@@ -2,19 +2,21 @@ import React, { useState } from 'react';
 import { Modal, Form, Button, Alert } from 'react-bootstrap';
 import { useDispatch, useSelector } from 'react-redux';
 import { createReview, clearError, clearSuccess } from '../redux/reviewSlice';
+import { useNotification } from './NotificationProvider';
 
 // Review Form Component
 export function ReviewForm({ show, onHide, orderItem }) {
   const dispatch = useDispatch();
   const { submitting, error, successMessage } = useSelector((s) => s.review);
-  
+  const notify = useNotification();
+
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [hover, setHover] = useState(0);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       await dispatch(createReview({
         productId: orderItem.product._id,
@@ -22,11 +24,12 @@ export function ReviewForm({ show, onHide, orderItem }) {
         rating,
         comment
       })).unwrap();
-      
+
       setTimeout(() => {
         dispatch(clearSuccess());
         onHide();
       }, 2000);
+      notify.success('Đánh giá thành công! Bạn nhận được 5 điểm');
     } catch (err) {
       console.error('Review error:', err);
     }
@@ -37,24 +40,24 @@ export function ReviewForm({ show, onHide, orderItem }) {
       <Modal.Header closeButton>
         <Modal.Title>Đánh giá sản phẩm</Modal.Title>
       </Modal.Header>
-      
+
       <Modal.Body>
         {error && (
           <Alert variant="danger" dismissible onClose={() => dispatch(clearError())}>
             {error}
           </Alert>
         )}
-        
+
         {successMessage && (
           <Alert variant="success">
             <i className="bi bi-check-circle me-2"></i>
             {successMessage}
           </Alert>
         )}
-        
+
         <div className="text-center mb-3">
-          <img 
-            src={orderItem.product.images[0]} 
+          <img
+            src={orderItem.product.images[0]}
             alt={orderItem.product.name}
             style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px' }}
           />
@@ -68,9 +71,8 @@ export function ReviewForm({ show, onHide, orderItem }) {
               {[1, 2, 3, 4, 5].map((star) => (
                 <i
                   key={star}
-                  className={`bi ${
-                    star <= (hover || rating) ? 'bi-star-fill' : 'bi-star'
-                  }`}
+                  className={`bi ${star <= (hover || rating) ? 'bi-star-fill' : 'bi-star'
+                    }`}
                   style={{
                     color: star <= (hover || rating) ? '#ffc107' : '#dee2e6',
                     cursor: 'pointer',
@@ -104,17 +106,17 @@ export function ReviewForm({ show, onHide, orderItem }) {
 
           <div className="alert alert-info small">
             <i className="bi bi-gift me-2"></i>
-            <strong>Phần thưởng:</strong> Nhận 50 điểm tích lũy + Mã giảm giá 5%
+            <strong>Phần thưởng:</strong> Nhận 5 điểm tích lũy
           </div>
         </Form>
       </Modal.Body>
-      
+
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide}>
           Hủy
         </Button>
-        <Button 
-          variant="primary" 
+        <Button
+          variant="primary"
           onClick={handleSubmit}
           disabled={submitting || !rating}
         >
@@ -130,13 +132,13 @@ export function ReviewCard({ review }) {
   return (
     <div className="review-card border-bottom pb-3 mb-3">
       <div className="d-flex align-items-start">
-        <img 
+        <img
           src={review.userId?.avatar || 'https://via.placeholder.com/50'}
           alt={review.userId?.name}
           className="rounded-circle me-3"
           style={{ width: '50px', height: '50px', objectFit: 'cover' }}
         />
-        
+
         <div className="flex-grow-1">
           <div className="d-flex justify-content-between align-items-start">
             <div>
@@ -149,7 +151,7 @@ export function ReviewCard({ review }) {
               )}
               <div className="text-warning small">
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <i 
+                  <i
                     key={star}
                     className={star <= review.rating ? 'bi bi-star-fill' : 'bi bi-star'}
                   ></i>
@@ -160,20 +162,20 @@ export function ReviewCard({ review }) {
               {new Date(review.createdAt).toLocaleDateString('vi-VN')}
             </small>
           </div>
-          
+
           <p className="mt-2 mb-2">{review.comment}</p>
-          
+
           {review.images && review.images.length > 0 && (
             <div className="d-flex gap-2 mb-2">
               {review.images.map((img, idx) => (
-                <img 
+                <img
                   key={idx}
                   src={img}
                   alt={`Review ${idx + 1}`}
-                  style={{ 
-                    width: '80px', 
-                    height: '80px', 
-                    objectFit: 'cover', 
+                  style={{
+                    width: '80px',
+                    height: '80px',
+                    objectFit: 'cover',
                     borderRadius: '8px',
                     cursor: 'pointer'
                   }}
@@ -181,7 +183,7 @@ export function ReviewCard({ review }) {
               ))}
             </div>
           )}
-          
+
           {review.reply && (
             <div className="bg-light p-3 rounded mt-2">
               <strong className="text-primary">
@@ -203,9 +205,9 @@ export function ReviewCard({ review }) {
 // Rating Summary Component
 export function RatingSummary({ stats }) {
   if (!stats) return null;
-  
+
   const { averageRating, totalReviews, ratingBreakdown } = stats;
-  
+
   return (
     <div className="rating-summary bg-light p-4 rounded mb-4">
       <div className="row align-items-center">
@@ -213,7 +215,7 @@ export function RatingSummary({ stats }) {
           <h1 className="display-3 mb-0">{averageRating.toFixed(1)}</h1>
           <div className="text-warning mb-2">
             {[1, 2, 3, 4, 5].map((star) => (
-              <i 
+              <i
                 key={star}
                 className={star <= Math.round(averageRating) ? 'bi bi-star-fill' : 'bi bi-star'}
                 style={{ fontSize: '1.5rem' }}
@@ -222,20 +224,20 @@ export function RatingSummary({ stats }) {
           </div>
           <p className="text-muted mb-0">{totalReviews} đánh giá</p>
         </div>
-        
+
         <div className="col-md-8">
           {[5, 4, 3, 2, 1].map((rating) => {
             const count = ratingBreakdown[rating] || 0;
             const percentage = totalReviews > 0 ? (count / totalReviews) * 100 : 0;
-            
+
             return (
               <div key={rating} className="d-flex align-items-center mb-2">
                 <span className="me-2" style={{ minWidth: '60px' }}>
                   {rating} <i className="bi bi-star-fill text-warning"></i>
                 </span>
                 <div className="progress flex-grow-1" style={{ height: '8px' }}>
-                  <div 
-                    className="progress-bar bg-warning" 
+                  <div
+                    className="progress-bar bg-warning"
                     style={{ width: `${percentage}%` }}
                   ></div>
                 </div>

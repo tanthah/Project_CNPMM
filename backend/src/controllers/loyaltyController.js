@@ -1,19 +1,19 @@
-// backend/src/controllers/loyaltyController.js - FIXED
+
 import LoyaltyPoint from '../models/LoyaltyPoint.js';
 
-// ✅ GET USER LOYALTY POINTS
+//  LẤY ĐIỂM THƯỞNG CỦA USER
 export const getLoyaltyPoints = async (req, res) => {
   try {
     const userId = req.user.id;
 
     let loyaltyPoints = await LoyaltyPoint.findOne({ userId });
-    
+
     if (!loyaltyPoints) {
       loyaltyPoints = await LoyaltyPoint.create({ userId });
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       loyaltyPoints
     });
   } catch (err) {
@@ -21,7 +21,7 @@ export const getLoyaltyPoints = async (req, res) => {
   }
 };
 
-// ✅ GET POINTS HISTORY
+//  LẤY LỊCH SỬ ĐIỂM
 export const getPointsHistory = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -29,10 +29,10 @@ export const getPointsHistory = async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
 
     const loyaltyPoints = await LoyaltyPoint.findOne({ userId });
-    
+
     if (!loyaltyPoints) {
-      return res.json({ 
-        success: true, 
+      return res.json({
+        success: true,
         history: [],
         pagination: {
           currentPage: page,
@@ -42,17 +42,17 @@ export const getPointsHistory = async (req, res) => {
       });
     }
 
-    // Paginate history
+    // Phân trang lịch sử
     const totalItems = loyaltyPoints.history.length;
     const startIndex = (page - 1) * limit;
     const endIndex = startIndex + limit;
-    
+
     const paginatedHistory = loyaltyPoints.history
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(startIndex, endIndex);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       history: paginatedHistory,
       summary: {
         totalPoints: loyaltyPoints.totalPoints,

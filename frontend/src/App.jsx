@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux'
 import './App.css'
 import ScrollToTop from "./components/ScrollToTop";
 import { SocketProvider } from './contexts/SocketContext';
+import { SettingsProvider } from './contexts/SettingsContext';
 import ChatWidget from './components/ChatWidget';
 import ToastNotification from './components/ToastNotification';
 
@@ -13,6 +14,7 @@ import Home from './pages/Home.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
+import GoogleCallback from './pages/GoogleCallback.jsx'
 import ReviewProfile from './pages/ReviewProfile.jsx'
 import EditProfile from './pages/EditProfile.jsx'
 import ProductDetail from './pages/ProductDetail.jsx'
@@ -28,16 +30,18 @@ import Wishlist from './pages/Wishlist'
 import LoyaltyPoints from './pages/LoyaltyPoints'
 import ViewedProducts from './pages/ViewedProducts.jsx'
 import SearchResults from './pages/SearchResults.jsx'
+import CustomerSupport from './pages/CustomerSupport.jsx'
+import CouponsPage from './pages/CouponsPage.jsx'
 
-// ✅ ADMIN COMPONENTS
-import AdminLayout from './components/admin/AdminLayout'
-import AdminDashboard from './pages/admin/AdminDashboard'
-import AdminProducts from './pages/admin/AdminProducts'
-import AdminCategories from './pages/admin/AdminCategories'
-import AdminOrders from './pages/admin/AdminOrders'
-import AdminChat from './pages/admin/AdminChat'
+// ADMIN COMPONENTS
+// import AdminLayout from './components/admin/AdminLayout'
+// import AdminDashboard from './pages/admin/AdminDashboard'
+// import AdminProducts from './pages/admin/AdminProducts'
+// import AdminCategories from './pages/admin/AdminCategories'
+// import AdminOrders from './pages/admin/AdminOrders'
+// import AdminChat from './pages/admin/AdminChat'
 
-// ✅ PROTECTED ROUTE COMPONENT
+//  PROTECTED ROUTE COMPONENT
 function ProtectedRoute({ children, adminOnly = false }) {
   const { token, user } = useSelector((s) => s.auth);
 
@@ -58,7 +62,7 @@ function App() {
 
   return (
     <SocketProvider>
-      <>
+      <SettingsProvider>
         <ScrollToTop />
         <Routes>
           {/* ========================================
@@ -73,8 +77,18 @@ function App() {
           <Route path="/login" element={token ? <Navigate to="/" replace /> : <Login />} />
           <Route path="/register" element={token ? <Navigate to="/" replace /> : <Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/auth/google/callback" element={<GoogleCallback />} />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/search" element={<SearchResults />} />
+          <Route path="/coupons" element={<CouponsPage />} />
+          <Route path="/support" element={<CustomerSupport />} />
+
+          {/* Customer Support Pages */}
+          <Route path="/contact" element={<CustomerSupport />} />
+          <Route path="/shipping" element={<CustomerSupport />} />
+          <Route path="/warranty" element={<CustomerSupport />} />
+          <Route path="/return" element={<CustomerSupport />} />
+          <Route path="/payment" element={<CustomerSupport />} />
 
           {/* ========================================
               PROTECTED CUSTOMER ROUTES
@@ -142,7 +156,7 @@ function App() {
           {/* ========================================
               ADMIN ROUTES
           ======================================== */}
-          <Route path="/admin" element={
+          {/* <Route path="/admin" element={
             <ProtectedRoute adminOnly={true}>
               <AdminLayout />
             </ProtectedRoute>
@@ -153,8 +167,8 @@ function App() {
             <Route path="categories" element={<AdminCategories />} />
             <Route path="orders" element={<AdminOrders />} />
             <Route path="chat" element={<AdminChat />} />
-            {/* Add more admin routes here */}
-          </Route>
+           
+          </Route> */}
 
           {/* ========================================
               FALLBACK ROUTE
@@ -167,7 +181,7 @@ function App() {
 
         {/* Realtime Toast Notifications */}
         <ToastNotification />
-      </>
+      </SettingsProvider>
     </SocketProvider>
   )
 }

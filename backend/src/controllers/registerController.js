@@ -1,74 +1,70 @@
 import User from "../models/User.js";
+import { Coupon } from "../models/Coupon.js";
+import LoyaltyPoint from "../models/LoyaltyPoint.js";
+import { sendWelcomeEmail, sendOtpEmail } from "../services/emailService.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-// Temporary storage for OTP (in production, use Redis)
+// Lưu trữ tạm thời cho OTP (trong sản xuất, sử dụng Redis)
 const otpStore = new Map();
 
-// SEND OTP FOR REGISTRATION
+// GỬI OTP ĐỂ ĐĂNG KÝ
 export const sendRegisterOtp = async (req, res) => {
   try {
     const { email } = req.body;
 
-    // Check if email already exists
+    // Kiểm tra xem email đã tồn tại chưa
     const exist = await User.findOne({ email });
     if (exist) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Email đã tồn tại!" 
+        message: "Email đã tồn tại!"
       });
     }
 
-    // Generate 6-digit OTP
+    // Tạo OTP 6 chữ số
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Store OTP with 10 minutes expiration
+    // Lưu OTP với thời hạn 10 phút
     otpStore.set(email, {
       otp,
       expiresAt: Date.now() + 10 * 60 * 1000
     });
 
-    // Log OTP for testing
+    // Log OTP để kiểm thử
     console.log(`🔑 OTP for ${email}: ${otp}`);
 
-    // Send email
-    try {
-      const { sendEmail } = await import('../utils/sendEmail.js');
-      await sendEmail({
-        to: email,
-        subject: 'Mã OTP đăng ký tài khoản',
-        text: `Mã OTP của bạn là: ${otp}. Mã này có hiệu lực trong 10 phút.`,
-        html: `
-          <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #0d6efd;">Xác thực đăng ký tài khoản</h2>
-            <p>Mã OTP của bạn là:</p>
-            <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
-              <h1 style="color: #0d6efd; font-size: 36px; letter-spacing: 8px; margin: 0;">${otp}</h1>
-            </div>
-            <p>Mã này có hiệu lực trong <strong>10 phút</strong>.</p>
-            <p style="color: #6c757d; font-size: 14px;">Nếu bạn không yêu cầu đăng ký, vui lòng bỏ qua email này.</p>
-          </div>
-        `
+    // Gửi email
+    const emailResult = await sendOtpEmail(email, otp);
+
+    if (!emailResult.success) {
+      // Nếu gửi mail thất bại - LOG CHI TIẾT
+      console.error('❌ GỬI OTP THẤT BẠI!');
+      console.error('   - Email:', email);
+      console.error('   - Lỗi:', emailResult.error);
+      otpStore.delete(email); // Xóa OTP vừa tạo
+      return res.status(500).json({
+        success: false,
+        message: "Không thể gửi OTP. Vui lòng kiểm tra lại email hoặc thử lại sau.",
+        error: emailResult.error // Trả về lỗi chi tiết cho frontend
       });
-    } catch (emailErr) {
-      console.log('⚠️ Không gửi được email:', emailErr.message);
     }
 
-    return res.json({ 
+    return res.json({
       success: true,
       message: "Mã OTP đã được gửi đến email của bạn"
     });
 
   } catch (err) {
     console.error('❌ sendRegisterOtp error:', err);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Lỗi server!" 
+      message: "Lỗi server!"
     });
   }
 };
 
-// VERIFY OTP
+// XÁC THỰC OTP
 export const verifyRegisterOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -76,86 +72,86 @@ export const verifyRegisterOtp = async (req, res) => {
     const storedData = otpStore.get(email);
 
     if (!storedData) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "OTP không tồn tại hoặc đã hết hạn!" 
+        message: "OTP không tồn tại hoặc đã hết hạn!"
       });
     }
 
     if (storedData.expiresAt < Date.now()) {
       otpStore.delete(email);
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "OTP đã hết hạn!" 
+        message: "OTP đã hết hạn!"
       });
     }
 
     if (storedData.otp !== otp) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "OTP không đúng!" 
+        message: "OTP không đúng!"
       });
     }
 
-    return res.json({ 
+    return res.json({
       success: true,
       message: "Xác thực OTP thành công",
-      verified: true 
+      verified: true
     });
 
   } catch (err) {
     console.error('❌ verifyRegisterOtp error:', err);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Lỗi server!" 
+      message: "Lỗi server!"
     });
   }
 };
 
-// COMPLETE REGISTRATION (WITH OPTIONAL AVATAR)
+// HOÀN TẤT ĐĂNG KÝ (VỚI AVATAR TÙY CHỌN)
 export const completeRegistration = async (req, res) => {
   try {
-    const { 
-      name, 
-      email, 
-      password, 
-      phone, 
-      dateOfBirth, 
+    const {
+      name,
+      email,
+      password,
+      phone,
+      dateOfBirth,
       gender,
       otp
     } = req.body;
 
     console.log('📝 Complete registration request:', { name, email, phone, hasAvatar: !!req.file });
 
-    // Verify OTP one more time
+    // Xác thực OTP một lần nữa
     const storedData = otpStore.get(email);
     if (!storedData || storedData.otp !== otp || storedData.expiresAt < Date.now()) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "OTP không hợp lệ hoặc đã hết hạn!" 
+        message: "OTP không hợp lệ hoặc đã hết hạn!"
       });
     }
 
-    // Check if email already exists
+    // Kiểm tra xem email đã tồn tại chưa
     const exist = await User.findOne({ email });
     if (exist) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Email đã tồn tại!" 
+        message: "Email đã tồn tại!"
       });
     }
 
-    // Hash password
+    // Mã hóa mật khẩu
     const hashed = await bcrypt.hash(password, 10);
 
-    // Get avatar URL from Cloudinary (if exists)
+    // Lấy URL avatar từ Cloudinary (nếu có)
     let avatarUrl = '';
     if (req.file) {
       avatarUrl = req.file.path; // Cloudinary URL
       console.log('📸 Avatar uploaded to Cloudinary:', avatarUrl);
     }
 
-    // Create user
+    // Tạo user
     const user = await User.create({
       name,
       email,
@@ -168,19 +164,86 @@ export const completeRegistration = async (req, res) => {
 
     console.log('✅ User created successfully:', { id: user._id, email: user.email, avatar: user.avatar });
 
-    // Clear OTP after successful registration
+    // Xóa OTP sau khi đăng ký thành công
     otpStore.delete(email);
 
-    // Generate JWT token
+    // === TẠO QUÀ TẶNG CHÀO MỪNG ===
+    let couponCode = '';
+    const welcomePoints = 20;
+
+    try {
+      // 1. Tạo mã giảm giá 10% cho người dùng mới
+      // Tạo mã coupon unique: WELCOME + 6 ký tự random
+      const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      couponCode = `WELCOME${randomCode}`;
+
+      // Ngày hết hạn: 30 ngày kể từ hôm nay
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 30);
+
+      await Coupon.create({
+        code: couponCode,
+        type: 'percentage',
+        value: 10, // Giảm 10%
+        minOrderValue: 0, // Không giới hạn giá trị đơn hàng tối thiểu
+        maxDiscount: 500000, // Giảm tối đa 500,000đ
+        maxUses: 1, // Chỉ sử dụng 1 lần
+        userId: user._id, // Coupon riêng cho user này
+        expiryDate: expiryDate,
+        isActive: true,
+        source: 'registration',
+        sourceId: user._id,
+        description: 'Mã giảm giá 10% chào mừng thành viên mới'
+      });
+
+      console.log('🎁 Welcome coupon created:', couponCode);
+
+      // 2. Cộng 20 điểm thưởng cho người dùng mới
+      let loyaltyPoint = await LoyaltyPoint.findOne({ userId: user._id });
+
+      if (!loyaltyPoint) {
+        // Tạo mới LoyaltyPoint record cho user
+        loyaltyPoint = new LoyaltyPoint({
+          userId: user._id,
+          totalPoints: 0,
+          availablePoints: 0,
+          usedPoints: 0,
+          history: []
+        });
+      }
+
+      // Cộng điểm chào mừng
+      await loyaltyPoint.addPoints(
+        welcomePoints,
+        'Điểm thưởng chào mừng thành viên mới',
+        user._id,
+        'registration'
+      );
+
+      console.log('✨ Welcome points added:', welcomePoints);
+
+      // 3. Gửi email chào mừng
+      await sendWelcomeEmail(email, {
+        name: name,
+        couponCode: couponCode,
+        points: welcomePoints
+      });
+
+    } catch (welcomeErr) {
+      // Không fail đăng ký nếu gửi quà tặng thất bại
+      console.error('⚠️ Failed to create welcome gifts:', welcomeErr.message);
+    }
+
+    // Tạo token JWT
     const token = jwt.sign(
       { sub: user._id },
       process.env.JWT_SECRET || 'your_secret_key',
       { expiresIn: '7d' }
     );
 
-    return res.json({ 
+    return res.json({
       success: true,
-      message: "Đăng ký thành công!", 
+      message: "Đăng ký thành công!",
       token,
       user: {
         id: user._id,
@@ -193,14 +256,14 @@ export const completeRegistration = async (req, res) => {
 
   } catch (err) {
     console.error('❌ completeRegistration error:', err);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Lỗi server!" 
+      message: "Lỗi server!"
     });
   }
 };
 
-// Cleanup expired OTPs every 15 minutes
+// Dọn dẹp OTP hết hạn mỗi 15 phút
 setInterval(() => {
   const now = Date.now();
   for (const [email, data] of otpStore.entries()) {

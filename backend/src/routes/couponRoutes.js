@@ -1,5 +1,4 @@
-// backend/src/routes/couponRoutes.js
-// ========================================
+
 import express from 'express';
 import { authenticateToken } from '../middleware/authMiddleware.js';
 import { authorize } from '../middleware/authorization.js';
@@ -9,18 +8,22 @@ import {
   createCoupon,
   getAllCoupons,
   updateCoupon,
-  deleteCoupon
+  deleteCoupon,
+  getPublicCoupons
 } from '../controllers/couponController.js';
 
 const router = express.Router();
 
-// Customer routes
+// Route công khai
+router.get('/public', getPublicCoupons);
+
+// Route khách hàng
 router.use(authenticateToken);
 
 router.get('/user', getUserCoupons);
 router.post('/validate', validateCoupon);
 
-// Admin routes
+// Route Admin
 router.post('/create', authorize('admin'), createCoupon);
 router.get('/all', authorize('admin'), getAllCoupons);
 router.put('/:couponId', authorize('admin'), updateCoupon);

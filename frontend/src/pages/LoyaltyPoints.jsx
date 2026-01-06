@@ -95,7 +95,7 @@ export default function LoyaltyPoints() {
             {coupons && coupons.length > 0 ? (
               <Row>
                 {coupons.map((coupon) => (
-                  <Col key={coupon._id} md={6} className="mb-3">
+                  <Col key={coupon._id} lg={6} md={12} xs={12} className="mb-3">
                     <Card className="border-success">
                       <Card.Body>
                         <div className="d-flex justify-content-between align-items-start">
@@ -108,8 +108,8 @@ export default function LoyaltyPoints() {
                               HSD: {new Date(coupon.expiryDate).toLocaleDateString('vi-VN')}
                             </small>
                           </div>
-                          <Button 
-                            variant="outline-primary" 
+                          <Button
+                            variant="outline-primary"
                             size="sm"
                             onClick={() => handleCopyCode(coupon.code)}
                           >

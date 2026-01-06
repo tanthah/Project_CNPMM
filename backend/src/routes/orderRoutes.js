@@ -1,4 +1,4 @@
-// backend/src/routes/orderRoutes.js - ENHANCED
+
 import express from 'express';
 import { authenticateToken } from '../middleware/authMiddleware.js';
 import { authorize } from '../middleware/authorization.js';
@@ -10,40 +10,50 @@ import {
     getOrderStatusHistory,
     updateOrderStatus,
     handleCancelRequest,
-    getOrderStatistics
+    getOrderStatistics,
+    getAllOrders,
+    getAdminOrderDetail,
+    updateOrderNote,
+    deleteOrder // Import added
 } from '../controllers/orderController.js';
 
 const router = express.Router();
 
-// ✅ CUSTOMER ROUTES
+// ✅ ROUTE KHÁCH HÀNG
 router.use(authenticateToken);
 
-// Create order
+// Tạo đơn hàng
 router.post('/create', createOrder);
 
-// Get user orders (with optional status filter)
-// Example: /orders?status=new
+// ✅ ADMIN: Lấy tất cả đơn hàng (Phải đặt trước /:id hoặc /)
+router.get('/admin/list', authorize('admin'), getAllOrders);
+router.get('/admin/detail/:orderId', authorize('admin'), getAdminOrderDetail);
+router.put('/admin/note/:orderId', authorize('admin'), updateOrderNote);
+router.delete('/admin/delete/:orderId', authorize('admin'), deleteOrder);
+
+// Lấy đơn hàng của user (với bộ lọc trạng thái tùy chọn)
+// Ví dụ: /orders?status=new
 router.get('/', getUserOrders);
 
-// Get order statistics
+// Lấy thống kê đơn hàng
 router.get('/statistics', getOrderStatistics);
 
-// Get order detail
+// Lấy chi tiết đơn hàng
 router.get('/:orderId', getOrderDetail);
 
-// Get order status history
+// Lấy lịch sử trạng thái đơn hàng
 router.get('/:orderId/history', getOrderStatusHistory);
 
-// Cancel order
+// Hủy đơn hàng
 router.put('/:orderId/cancel', cancelOrder);
 
-// ✅ ADMIN ROUTES
+// ✅ ROUTE ADMIN
 router.use(authorize('admin'));
 
-// Update order status
+// Cập nhật trạng thái đơn hàng
 router.put('/:orderId/status', updateOrderStatus);
 
-// Handle cancel request
+// Xử lý yêu cầu hủy
 router.put('/:orderId/cancel-request', handleCancelRequest);
 
 export default router;

@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import TokenBlacklist from '../models/TokenBlacklist.js';
 
 export const authenticateToken = async (req, res, next) => {
   try {
@@ -14,12 +15,21 @@ export const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Verify token
+    // Kiểm tra danh sách đen
+    const isBlacklisted = await TokenBlacklist.findOne({ token });
+    if (isBlacklisted) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token đã hết hiệu lực (Đã đăng xuất)'
+      });
+    }
+
+    // Xác thực token
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
-    
+
     // Kiểm tra user có tồn tại không
     const user = await User.findById(decoded.sub).select('-password');
-    
+
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -34,7 +44,7 @@ export const authenticateToken = async (req, res, next) => {
       role: user.role,
       name: user.name
     };
-    
+
     next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
@@ -43,7 +53,7 @@ export const authenticateToken = async (req, res, next) => {
         message: 'Token đã hết hạn. Vui lòng đăng nhập lại'
       });
     }
-    
+
     if (error.name === 'JsonWebTokenError') {
       return res.status(403).json({
         success: false,
@@ -68,7 +78,7 @@ export const optionalAuth = async (req, res, next) => {
     if (token) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
       const user = await User.findById(decoded.sub).select('-password');
-      
+
       if (user) {
         req.user = {
           id: decoded.sub,
@@ -78,7 +88,7 @@ export const optionalAuth = async (req, res, next) => {
         };
       }
     }
-    
+
     next();
   } catch (error) {
     // Nếu có lỗi, vẫn cho phép tiếp tục nhưng không có thông tin user

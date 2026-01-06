@@ -1,19 +1,163 @@
 
-// backend/src/controllers/orderController.js - ENHANCED
+
 import Order from '../models/Order.js';
 import Cart from '../models/Cart.js';
 import Product from '../models/Product.js';
 import Address from '../models/Address.js';
+import LoyaltyPoint from '../models/LoyaltyPoint.js';
 
 import * as notificationService from '../services/notificationService.js';
 import * as emailService from '../services/emailService.js';
-import { getIO } from '../sockets/socketHandler.js'; // Import getIO
+import { getIO } from '../sockets/socketHandler.js';
+import { applyCouponToOrder } from './couponController.js';
 
-// ✅ CREATE ORDER - Updated với status history
+import User from '../models/User.js'; // Added import
+
+// ✅ ADMIN: Lấy tất cả đơn hàng với Lọc & Phân trang
+export const getAllOrders = async (req, res) => {
+    try {
+        const { page = 1, limit = 20, status, search, paymentMethod, startDate, endDate, userId } = req.query;
+        const query = {};
+
+        // Lọc theo Trạng thái
+        if (status) query.status = status;
+
+        // Lọc theo Phương thức thanh toán
+        if (paymentMethod) query.paymentMethod = paymentMethod;
+
+        // Lọc theo ID người dùng cụ thể
+        if (userId) query.userId = userId;
+
+        // Lọc theo Khoảng thời gian
+        if (startDate || endDate) {
+            query.createdAt = {};
+            if (startDate) query.createdAt.$gte = new Date(startDate);
+            if (endDate) query.createdAt.$lte = new Date(new Date(endDate).setHours(23, 59, 59, 999));
+        }
+
+        // Tìm kiếm theo Mã đơn hàng hoặc Tên khách hàng
+        if (search) {
+            // Tìm người dùng khớp tên
+            const users = await User.find({
+                $or: [
+                    { name: { $regex: search, $options: 'i' } },
+                    { email: { $regex: search, $options: 'i' } }
+                ]
+            }).select('_id');
+
+            const userIds = users.map(u => u._id);
+
+            query.$or = [
+                { orderCode: { $regex: search, $options: 'i' } },
+                { userId: { $in: userIds } }
+            ];
+        }
+
+        const skip = (page - 1) * parseInt(limit);
+
+        const orders = await Order.find(query)
+            .populate('userId', 'name email phone avatar')
+            .populate('items.productId', 'name price image')
+            .populate('addressId')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(parseInt(limit));
+
+        const total = await Order.countDocuments(query);
+
+        res.json({
+            success: true,
+            data: orders, // Nhất quán với các phản hồi API khác
+            pagination: {
+                total,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                totalPages: Math.ceil(total / parseInt(limit))
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+
+
+// ✅ ADMIN: Lấy chi tiết đơn hàng
+export const getAdminOrderDetail = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+
+        const order = await Order.findById(orderId)
+            .populate('userId', 'name email phone avatar')
+            .populate('items.productId', 'name price image')
+            .populate('addressId');
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy đơn hàng'
+            });
+        }
+
+        res.json({
+            success: true,
+            order
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// ✅ ADMIN: Cập nhật ghi chú nội bộ
+export const updateOrderNote = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const { internalNote } = req.body;
+
+        const order = await Order.findByIdAndUpdate(
+            orderId,
+            { internalNote },
+            { new: true }
+        );
+
+        if (!order) {
+            return res.status(404).json({ success: false, message: 'Order not found' });
+        }
+
+        res.json({
+            success: true,
+            message: 'Đã cập nhật ghi chú nội bộ',
+            internalNote: order.internalNote
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// ✅ ADMIN: Xóa đơn hàng
+export const deleteOrder = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const order = await Order.findByIdAndDelete(orderId);
+
+        if (!order) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
+        }
+
+        res.json({
+            success: true,
+            message: 'Đã xóa đơn hàng vĩnh viễn'
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// ✅ TẠO ĐƠN HÀNG - Cập nhật với lịch sử trạng thái
 export const createOrder = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { addressId, notes, shippingFee = 30000, items } = req.body;
+        const { addressId, notes, shippingFee = 30000, items, couponCode, usedPoints } = req.body;
 
         const address = await Address.findOne({ _id: addressId, userId });
         if (!address) {
@@ -43,12 +187,25 @@ export const createOrder = async (req, res) => {
                 orderItems.push({ productId: product._id, quantity: qty, price: priceToUse });
                 totalProductsPrice += priceToUse * qty;
 
-                // Real-time stock update
+                // Cập nhật kho thời gian thực
                 try {
                     getIO().emit('product_updated', product);
                 } catch (e) {
                     console.error('Socket emit error:', e);
                 }
+            }
+
+            // ✅ XÓA CÁC MẶT HÀNG ĐÃ ĐẶT KHỎI GIỎ HÀNG
+            const cart = await Cart.findOne({ userId });
+            if (cart) {
+                const orderedProductIds = orderItems.map(item => item.productId.toString());
+                cart.items = cart.items.filter(item => !orderedProductIds.includes(item.productId.toString()));
+
+                // Tính toán lại tổng số
+                cart.totalQuantity = cart.items.reduce((sum, item) => sum + item.quantity, 0);
+                cart.totalPrice = cart.items.reduce((sum, item) => sum + (item.finalPrice * item.quantity), 0);
+
+                await cart.save();
             }
         } else {
             const cart = await Cart.findOne({ userId }).populate('items.productId');
@@ -83,7 +240,63 @@ export const createOrder = async (req, res) => {
         }
 
         const orderCode = `ORD${Date.now()}${Math.floor(Math.random() * 1000)} `;
-        const totalPrice = totalProductsPrice + shippingFee;
+
+        // ✅ Áp dụng mã giảm giá nếu có
+        let couponDiscount = 0;
+        let appliedCouponId = null;
+        let appliedCouponCode = null;
+
+        if (couponCode) {
+            try {
+                const couponResult = await applyCouponToOrder(couponCode, userId, totalProductsPrice);
+                couponDiscount = couponResult.discount;
+                appliedCouponId = couponResult.couponId;
+                appliedCouponCode = couponCode.toUpperCase();
+            } catch (couponError) {
+                return res.status(400).json({
+                    success: false,
+                    message: couponError.message
+                });
+            }
+        }
+
+        // ✅ Xử lý điểm thưởng (Loyalty Points)
+        let pointsDiscount = 0;
+        let finalUsedPoints = 0;
+
+        if (usedPoints && usedPoints > 0) {
+            let loyaltyWallet = await LoyaltyPoint.findOne({ userId });
+
+            if (!loyaltyWallet) {
+                return res.status(400).json({ success: false, message: 'Bạn chưa có ví điểm thưởng' });
+            }
+
+            if (loyaltyWallet.availablePoints < usedPoints) {
+                return res.status(400).json({ success: false, message: 'Không đủ điểm thưởng để sử dụng' });
+            }
+
+            // Quy đổi: 5 điểm = 1.000 VNĐ => 1 điểm = 200 VNĐ
+            // User yêu cầu: dùng 20 điểm giảm 4.000 VNĐ => 20 * 200 = 4000
+            pointsDiscount = usedPoints * 200;
+
+            // Validate: Không cho dùng điểm > tiền đơn (tổng tiền hàng - coupon)
+            const amountBeforePoints = totalProductsPrice - couponDiscount;
+            if (pointsDiscount > amountBeforePoints) {
+                return res.status(400).json({ success: false, message: 'Điểm sử dụng vượt quá giá trị đơn hàng' });
+            }
+
+            finalUsedPoints = usedPoints;
+
+            // Trừ điểm ngay
+            await loyaltyWallet.spendPoints(
+                finalUsedPoints,
+                `Sử dụng cho đơn hàng ${orderCode}`,
+                null, // referenceId sẽ update sau khi có orderId hoặc tạm thời null
+                'order'
+            );
+        }
+
+        const totalPrice = totalProductsPrice + shippingFee - couponDiscount - pointsDiscount;
 
         const order = await Order.create({
             orderCode,
@@ -91,6 +304,12 @@ export const createOrder = async (req, res) => {
             items: orderItems,
             totalPrice,
             shippingFee,
+            discount: couponDiscount,
+            couponCode: appliedCouponCode,
+            couponDiscount,
+            couponId: appliedCouponId,
+            usedPoints: finalUsedPoints,
+            discount: couponDiscount + pointsDiscount, // Tổng giảm giá (coupon + points)
             status: 'new',
             paymentStatus: 'unpaid',
             paymentMethod: 'COD',
@@ -100,7 +319,7 @@ export const createOrder = async (req, res) => {
 
         await order.populate(['items.productId', 'addressId']);
 
-        // ✅ SEND NOTIFICATION TO USER - Order placed
+        // ✅ GỬI THÔNG BÁO CHO USER - Đơn hàng đã đặt
         try {
             await notificationService.createNotification({
                 userId,
@@ -123,7 +342,7 @@ export const createOrder = async (req, res) => {
     }
 };
 
-// ✅ GET USER ORDERS - With status filtering
+// ✅ LẤY ĐƠN HÀNG CỦA USER - Với lọc trạng thái
 export const getUserOrders = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -148,7 +367,7 @@ export const getUserOrders = async (req, res) => {
     }
 };
 
-// ✅ GET ORDER DETAIL - With full status history
+// ✅ LẤY CHI TIẾT ĐƠN HÀNG - Với đầy đủ lịch sử trạng thái
 export const getOrderDetail = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -175,7 +394,7 @@ export const getOrderDetail = async (req, res) => {
     }
 };
 
-// ✅ CANCEL ORDER - Enhanced với logic 30 phút
+// ✅ HỦY ĐƠN HÀNG - Nâng cao với logic 30 phút
 export const cancelOrder = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -190,7 +409,7 @@ export const cancelOrder = async (req, res) => {
             });
         }
 
-        // Check if already cancelled or completed
+        // Kiểm tra xem đã hủy hoặc hoàn thành chưa
         if (order.status === 'cancelled') {
             return res.status(400).json({
                 success: false,
@@ -205,9 +424,9 @@ export const cancelOrder = async (req, res) => {
             });
         }
 
-        // Check if can directly cancel (new or confirmed within 30 minutes)
+        // Kiểm tra xem có thể hủy trực tiếp không (mới hoặc đã xác nhận trong vòng 30 phút)
         if (order.canDirectCancel) {
-            // Direct cancellation - Restore stock
+            // Hủy trực tiếp - Khôi phục kho
             for (const item of order.items) {
                 const product = await Product.findById(item.productId);
                 if (product) {
@@ -232,6 +451,19 @@ export const cancelOrder = async (req, res) => {
 
             order.cancelReason = cancelReason || 'Khách hàng hủy đơn';
 
+            // ✅ HOÀN LẠI ĐIỂM NẾU ĐÃ SỬ DỤNG
+            if (order.usedPoints > 0) {
+                let loyaltyWallet = await LoyaltyPoint.findOne({ userId });
+                if (loyaltyWallet) {
+                    await loyaltyWallet.addPoints(
+                        order.usedPoints,
+                        `Hoàn lại điểm do hủy đơn hàng ${order.orderCode}`,
+                        order._id,
+                        'order'
+                    );
+                }
+            }
+
             return res.json({
                 success: true,
                 order,
@@ -239,7 +471,7 @@ export const cancelOrder = async (req, res) => {
             });
         }
 
-        // If preparing - Create cancel request
+        // Nếu đang chuẩn bị - Tạo yêu cầu hủy
         if (order.status === 'preparing') {
             await order.updateStatus(
                 'cancel_requested',
@@ -269,7 +501,7 @@ export const cancelOrder = async (req, res) => {
     }
 };
 
-// ✅ GET ORDER STATUS HISTORY
+// ✅ LẤY LỊCH SỬ TRẠNG THÁI ĐƠN HÀNG
 export const getOrderStatusHistory = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -293,7 +525,7 @@ export const getOrderStatusHistory = async (req, res) => {
     }
 };
 
-// ✅ ADMIN: Update order status
+// ✅ ADMIN: Cập nhật trạng thái đơn hàng
 export const updateOrderStatus = async (req, res) => {
     try {
         const { orderId } = req.params;
@@ -309,7 +541,43 @@ export const updateOrderStatus = async (req, res) => {
 
         await order.updateStatus(status, note, 'admin');
 
-        // ✅ SEND NOTIFICATION TO USER
+        // ✅ LOGIC ĐIỂM THƯỞNG
+        if (status === 'completed' && (!order.earnedPoints || order.earnedPoints === 0)) {
+            // Tích điểm: 20.000 VNĐ = 1 điểm (tương đương 5% giá trị nếu 1 điểm = 1000đ)
+            const pointsToEarn = Math.floor(order.totalPrice / 20000);
+
+            if (pointsToEarn > 0) {
+                let loyaltyWallet = await LoyaltyPoint.findOne({ userId: order.userId });
+                if (!loyaltyWallet) {
+                    loyaltyWallet = await LoyaltyPoint.create({ userId: order.userId });
+                }
+
+                await loyaltyWallet.addPoints(
+                    pointsToEarn,
+                    `Tích điểm từ đơn hàng ${order.orderCode}`,
+                    order._id,
+                    'order'
+                );
+
+                order.earnedPoints = pointsToEarn;
+                await order.save();
+            }
+        } else if (status === 'cancelled') {
+            // Hoàn điểm nếu đã dùng
+            if (order.usedPoints > 0) {
+                let loyaltyWallet = await LoyaltyPoint.findOne({ userId: order.userId });
+                if (loyaltyWallet) {
+                    await loyaltyWallet.addPoints(
+                        order.usedPoints,
+                        `Hoàn lại điểm do hủy đơn hàng ${order.orderCode}`,
+                        order._id,
+                        'order'
+                    );
+                }
+            }
+        }
+
+        // ✅ GỬI THÔNG BÁO CHO USER
 
         const notificationMap = {
             'confirmed': {
@@ -354,7 +622,7 @@ export const updateOrderStatus = async (req, res) => {
             }
         }
 
-        // ✅ SEND EMAIL for confirmed and completed orders
+        // ✅ GỬI EMAIL cho đơn hàng đã xác nhận và hoàn thành
         const orderWithUser = await Order.findById(order._id).populate('userId');
         if (orderWithUser && orderWithUser.userId && orderWithUser.userId.email) {
             const userEmail = orderWithUser.userId.email;
@@ -392,7 +660,7 @@ export const updateOrderStatus = async (req, res) => {
     }
 };
 
-// ✅ ADMIN: Approve/Reject cancel request
+// ✅ ADMIN: Chấp thuận/Từ chối yêu cầu hủy
 export const handleCancelRequest = async (req, res) => {
     try {
         const { orderId } = req.params;
@@ -414,7 +682,7 @@ export const handleCancelRequest = async (req, res) => {
         }
 
         if (action === 'approve') {
-            // Restore stock
+            // Khôi phục kho
             for (const item of order.items) {
                 const product = await Product.findById(item.productId);
                 if (product) {
@@ -433,6 +701,19 @@ export const handleCancelRequest = async (req, res) => {
 
             await order.updateStatus('cancelled', 'Yêu cầu hủy được chấp thuận', 'admin');
             order.cancellationInfo.approvedBy = req.user.id;
+
+            // ✅ HOÀN LẠI ĐIỂM NẾU ĐÃ SỬ DỤNG
+            if (order.usedPoints > 0) {
+                let loyaltyWallet = await LoyaltyPoint.findOne({ userId: order.userId });
+                if (loyaltyWallet) {
+                    await loyaltyWallet.addPoints(
+                        order.usedPoints,
+                        `Hoàn lại điểm do hủy đơn hàng ${order.orderCode}`,
+                        order._id,
+                        'order'
+                    );
+                }
+            }
 
             return res.json({
                 success: true,
@@ -466,7 +747,7 @@ export const handleCancelRequest = async (req, res) => {
     }
 };
 
-// ✅ GET ORDER STATISTICS
+// ✅ LẤY THỐNG KÊ ĐƠN HÀNG
 export const getOrderStatistics = async (req, res) => {
     try {
         const userId = req.user.id;

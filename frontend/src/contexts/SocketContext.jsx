@@ -21,7 +21,7 @@ export const SocketProvider = ({ children }) => {
     useEffect(() => {
         // Chỉ kết nối khi user đăng nhập
         if (token && user) {
-            const socketURL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+            const socketURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
             const newSocket = io(socketURL, {
                 auth: {
