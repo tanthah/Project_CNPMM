@@ -38,23 +38,13 @@ export default function About() {
 
   const team = [
     {
-      name: 'Nguyễn Văn A',
-      role: 'CEO & Founder',
+      name: ' Sỹ Hoàng Vũ',
+      role: '',
       image: 'https://via.placeholder.com/150'
     },
     {
-      name: 'Trần Thị B',
-      role: 'CTO',
-      image: 'https://via.placeholder.com/150'
-    },
-    {
-      name: 'Lê Văn C',
-      role: 'Marketing Director',
-      image: 'https://via.placeholder.com/150'
-    },
-    {
-      name: 'Phạm Thị D',
-      role: 'Customer Service Manager',
+      name: 'Ngô Đỗ Tấn Thành',
+      role: '',
       image: 'https://via.placeholder.com/150'
     }
   ];
@@ -62,7 +52,7 @@ export default function About() {
   return (
     <div className="about-page">
       <Header />
-      
+
       <main>
         {/* Hero Section */}
         <section className="about-hero">
@@ -70,17 +60,17 @@ export default function About() {
             <Row className="align-items-center">
               <Col lg={6}>
                 <h1 className="hero-title">
-                  Về UTE Shop
+                  Về TV Shop
                 </h1>
                 <p className="hero-description">
-                  Hệ thống bán lẻ điện thoại, laptop, tablet và phụ kiện công nghệ 
-                  chính hãng uy tín hàng đầu Việt Nam. Chúng tôi cam kết mang đến 
+                  Hệ thống bán lẻ điện thoại, laptop, tablet và phụ kiện công nghệ
+                  chính hãng uy tín hàng đầu Việt Nam. Chúng tôi cam kết mang đến
                   cho khách hàng những sản phẩm chất lượng nhất với giá cả cạnh tranh.
                 </p>
               </Col>
               <Col lg={6}>
-                <img 
-                  src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600" 
+                <img
+                  src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600"
                   alt="About UTE Shop"
                   className="hero-image"
                 />
@@ -118,9 +108,9 @@ export default function About() {
                     </div>
                     <h3>Sứ mệnh</h3>
                     <p>
-                      Mang công nghệ hiện đại đến gần hơn với mọi người, 
-                      giúp cuộc sống trở nên tiện lợi và hiện đại hơn. 
-                      Chúng tôi không chỉ bán sản phẩm mà còn cung cấp 
+                      Mang công nghệ hiện đại đến gần hơn với mọi người,
+                      giúp cuộc sống trở nên tiện lợi và hiện đại hơn.
+                      Chúng tôi không chỉ bán sản phẩm mà còn cung cấp
                       giải pháp công nghệ toàn diện.
                     </p>
                   </Card.Body>
@@ -134,8 +124,8 @@ export default function About() {
                     </div>
                     <h3>Tầm nhìn</h3>
                     <p>
-                      Trở thành hệ thống bán lẻ công nghệ số 1 Việt Nam, 
-                      được khách hàng tin tưởng và lựa chọn. Mở rộng 
+                      Trở thành hệ thống bán lẻ công nghệ số 1 Việt Nam,
+                      được khách hàng tin tưởng và lựa chọn. Mở rộng
                       quy mô lên 100+ cửa hàng trên toàn quốc trong 5 năm tới.
                     </p>
                   </Card.Body>
@@ -153,7 +143,7 @@ export default function About() {
             </h2>
             <Row>
               {values.map((value, idx) => (
-                <Col key={idx} md={3} sm={6} className="mb-4">
+                <Col key={idx} lg={3} md={6} xs={12} className="mb-4">
                   <Card className="value-card">
                     <Card.Body className="text-center">
                       <div className="value-icon">
@@ -177,11 +167,11 @@ export default function About() {
             </h2>
             <Row>
               {team.map((member, idx) => (
-                <Col key={idx} md={3} sm={6} className="mb-4">
+                <Col key={idx} lg={3} md={6} xs={12} className="mb-4">
                   <Card className="team-card">
-                    <Card.Img 
-                      variant="top" 
-                      src={member.image} 
+                    <Card.Img
+                      variant="top"
+                      src={member.image}
                       alt={member.name}
                       className="team-image"
                     />
@@ -196,27 +186,7 @@ export default function About() {
           </Container>
         </section>
 
-        {/* Contact CTA */}
-        <section className="contact-cta">
-          <Container>
-            <div className="cta-content">
-              <h2>Liên hệ với chúng tôi</h2>
-              <p>
-                Có câu hỏi hoặc cần hỗ trợ? Đội ngũ của chúng tôi luôn sẵn sàng giúp đỡ bạn!
-              </p>
-              <div className="cta-buttons">
-                <a href="tel:1900xxxx" className="btn btn-light btn-lg me-3">
-                  <i className="bi bi-telephone me-2"></i>
-                  Hotline: 1900 xxxx
-                </a>
-                <a href="mailto:support@uteshop.com" className="btn btn-outline-light btn-lg">
-                  <i className="bi bi-envelope me-2"></i>
-                  Email hỗ trợ
-                </a>
-              </div>
-            </div>
-          </Container>
-        </section>
+
       </main>
 
       <Footer />

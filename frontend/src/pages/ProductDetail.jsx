@@ -30,7 +30,6 @@ export default function ProductDetail() {
     const dispatch = useDispatch()
     const notify = useNotification()
     const { socket } = useSocket()
-    const hasFetched = useRef(false)
 
     const { currentProduct, loading, error } = useSelector((s) => s.products)
     const { token } = useSelector((s) => s.auth)
@@ -41,18 +40,22 @@ export default function ProductDetail() {
     const [productStats, setProductStats] = useState(null)
     const [isInWishlist, setIsInWishlist] = useState(false)
     const [wishlistLoading, setWishlistLoading] = useState(false)
-    const [activeTab, setActiveTab] = useState('reviews')
 
-    // Fetch product data
+    // ✅ Variant selection state
+    const [selectedVariant, setSelectedVariant] = useState(null)
+    const [availableAttributes, setAvailableAttributes] = useState({})
+    const [selectedAttributes, setSelectedAttributes] = useState({})
+
+
+    // Fetch product data - Reset when ID changes
     useEffect(() => {
         if (!id) return;
 
-        if (!hasFetched.current) {
-            hasFetched.current = true;
-            dispatch(clearCurrentProduct());
-            dispatch(fetchProductById(id));
-            loadProductData();
-        }
+        // Always fetch when id changes (navigation to similar product)
+        dispatch(clearCurrentProduct());
+        dispatch(fetchProductById(id));
+        loadProductData();
+        setQuantity(1); // Reset quantity
 
         return () => {
             dispatch(clearCurrentProduct());
@@ -114,8 +117,69 @@ export default function ProductDetail() {
         }
     };
 
+    // ✅ Initialize variants when product loads
+    useEffect(() => {
+        if (currentProduct && currentProduct.hasVariants && currentProduct.variants?.length > 0) {
+            // Extract unique attribute values
+            const attrs = {};
+            currentProduct.variants.forEach(v => {
+                Object.entries(v.attributes || {}).forEach(([key, value]) => {
+                    if (value) {
+                        if (!attrs[key]) attrs[key] = new Set();
+                        attrs[key].add(value);
+                    }
+                });
+            });
+
+            // Convert Sets to Arrays
+            const formattedAttrs = {};
+            Object.entries(attrs).forEach(([key, valueSet]) => {
+                formattedAttrs[key] = Array.from(valueSet);
+            });
+            setAvailableAttributes(formattedAttrs);
+
+            // Auto-select first variant
+            setSelectedVariant(currentProduct.variants[0]);
+            const firstAttrs = {};
+            Object.entries(currentProduct.variants[0].attributes || {}).forEach(([k, v]) => {
+                if (v) firstAttrs[k] = v;
+            });
+            setSelectedAttributes(firstAttrs);
+        } else {
+            // No variants, clear state
+            setSelectedVariant(null);
+            setAvailableAttributes({});
+            setSelectedAttributes({});
+        }
+    }, [currentProduct]);
+
+    // ✅ Handle attribute selection change - Auto-select other attributes
+    const handleAttributeChange = (attributeKey, attributeValue) => {
+        // Find first variant that has this specific attribute value
+        const matchingVariant = currentProduct.variants.find(v => {
+            return v.attributes[attributeKey] === attributeValue;
+        });
+
+        if (matchingVariant) {
+            // Auto-fill ALL attributes from this variant
+            const allAttrs = {};
+            Object.entries(matchingVariant.attributes || {}).forEach(([k, v]) => {
+                if (v) allAttrs[k] = v;
+            });
+
+            setSelectedAttributes(allAttrs);
+            setSelectedVariant(matchingVariant);
+
+            // Reset quantity if exceeds new stock
+            if (quantity > matchingVariant.stock) {
+                setQuantity(Math.min(1, matchingVariant.stock));
+            }
+        }
+    };
+
     const handleIncrease = () => {
-        if (currentProduct && quantity < currentProduct.stock) {
+        const maxStock = selectedVariant ? selectedVariant.stock : (currentProduct?.stock || 0);
+        if (quantity < maxStock) {
             setQuantity(q => q + 1)
         }
     }
@@ -133,13 +197,23 @@ export default function ProductDetail() {
             return
         }
 
+        // ✅ Validate variant selection
+        if (currentProduct.hasVariants && !selectedVariant) {
+            notify.error('Vui lòng chọn phiên bản sản phẩm')
+            return
+        }
+
         try {
             await dispatch(addToCart({
                 productId: currentProduct._id,
-                quantity
+                quantity,
+                variantId: selectedVariant?._id // ✅ Include variant ID
             })).unwrap()
 
-            notify.success(`Đã thêm ${quantity} ${currentProduct.name} vào giỏ hàng`);
+            const productName = selectedVariant
+                ? `${currentProduct.name} - ${selectedVariant.name}`
+                : currentProduct.name;
+            notify.success(`Đã thêm ${quantity} ${productName} vào giỏ hàng`);
         } catch (err) {
             notify.error(err || 'Không thể thêm vào giỏ hàng')
         }
@@ -152,16 +226,32 @@ export default function ProductDetail() {
             return
         }
 
+        // ✅ Validate variant selection
+        if (currentProduct.hasVariants && !selectedVariant) {
+            notify.error('Vui lòng chọn phiên bản sản phẩm')
+            return
+        }
+
+        const displayPrice = selectedVariant
+            ? selectedVariant.price
+            : (currentProduct.finalPrice || currentProduct.price);
+
+        const displayStock = selectedVariant
+            ? selectedVariant.stock
+            : currentProduct.stock;
+
         navigate('/checkout', {
             state: {
                 buyNow: true,
                 product: {
                     productId: currentProduct._id,
+                    variantId: selectedVariant?._id, // ✅ Include variant
                     quantity: quantity,
                     productName: currentProduct.name,
+                    variantName: selectedVariant?.name,
                     productImage: currentProduct.images[0],
-                    finalPrice: currentProduct.finalPrice || currentProduct.price,
-                    stock: currentProduct.stock || 0
+                    finalPrice: displayPrice,
+                    stock: displayStock || 0
                 }
             }
         })
@@ -306,87 +396,145 @@ export default function ProductDetail() {
                             )}
 
                             <div className="price-box">
-                                {product.discount > 0 && product.price && (
-                                    <>
-                                        <div className="original-price">
-                                            {product.price.toLocaleString('vi-VN')}đ
-                                        </div>
-                                        <Badge bg="danger" className="discount-badge-detail ms-2">
-                                            -{product.discount}%
-                                        </Badge>
-                                    </>
-                                )}
-                                <div className="final-price">
-                                    {(product.finalPrice || product.price || 0).toLocaleString('vi-VN')}đ
-                                </div>
+                                {(() => {
+                                    // Determine which price to show
+                                    const displayPrice = selectedVariant ? selectedVariant.price : (product.finalPrice || product.price || 0);
+                                    const originalPrice = selectedVariant ? null : product.price;
+
+                                    return (
+                                        <>
+                                            {product.discount > 0 && originalPrice && !selectedVariant && (
+                                                <>
+                                                    <div className="original-price">
+                                                        {originalPrice.toLocaleString('vi-VN')}đ
+                                                    </div>
+                                                    <Badge bg="danger" className="discount-badge-detail ms-2">
+                                                        -{product.discount}%
+                                                    </Badge>
+                                                </>
+                                            )}
+                                            <div className="final-price">
+                                                {displayPrice.toLocaleString('vi-VN')}đ
+                                            </div>
+                                        </>
+                                    );
+                                })()}
                             </div>
 
-                            {/* ✅ PRODUCT STATS SECTION */}
+                            {/* ✅ PRODUCT STATS SECTION - Compact inline version */}
                             {productStats && (
-                                <div className="product-stats-detail mb-3">
-                                    <Row className="g-2">
-                                        <Col xs={6} md={3}>
-                                            <div className="stat-card text-center p-2 bg-light rounded">
-                                                <i className="bi bi-eye text-primary fs-4"></i>
-                                                <div className="fw-bold">{productStats.views}</div>
-                                                <small className="text-muted">Lượt xem</small>
+                                <div className="product-stats-inline d-flex gap-3 mb-3 text-muted small">
+                                    <span>
+                                        <i className="bi bi-eye me-1"></i>
+                                        {productStats.views} lượt xem
+                                    </span>
+                                    <span>
+                                        <i className="bi bi-cart-check me-1"></i>
+                                        {productStats.sold} đã bán
+                                    </span>
+                                    <span>
+                                        <i className="bi bi-star me-1"></i>
+                                        {productStats.uniqueReviewers} đánh giá
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* ✅ VARIANT SELECTOR - Only show if product has variants */}
+                            {product.hasVariants && product.variants?.length > 0 && (
+                                <div className="variant-selector-section my-4">
+                                    <h6 className="fw-bold mb-3">Chọn phiên bản:</h6>
+
+                                    {/* Color Selection */}
+                                    {availableAttributes.color && availableAttributes.color.length > 0 && (
+                                        <div className="mb-3">
+                                            <label className="form-label small text-muted">Màu sắc:</label>
+                                            <div className="d-flex gap-2 flex-wrap">
+                                                {availableAttributes.color.map(color => (
+                                                    <Button
+                                                        key={color}
+                                                        size="sm"
+                                                        variant={selectedAttributes.color === color ? "primary" : "outline-secondary"}
+                                                        onClick={() => handleAttributeChange('color', color)}
+                                                        className="variant-option-btn"
+                                                    >
+                                                        {color}
+                                                    </Button>
+                                                ))}
                                             </div>
-                                        </Col>
-                                        <Col xs={6} md={3}>
-                                            <div className="stat-card text-center p-2 bg-light rounded">
-                                                <i className="bi bi-cart-check text-success fs-4"></i>
-                                                <div className="fw-bold">{productStats.sold}</div>
-                                                <small className="text-muted">Đã bán</small>
+                                        </div>
+                                    )}
+
+                                    {/* RAM Selection */}
+                                    {availableAttributes.ram && availableAttributes.ram.length > 0 && (
+                                        <div className="mb-3">
+                                            <label className="form-label small text-muted">RAM:</label>
+                                            <div className="d-flex gap-2 flex-wrap">
+                                                {availableAttributes.ram.map(ram => (
+                                                    <Button
+                                                        key={ram}
+                                                        size="sm"
+                                                        variant={selectedAttributes.ram === ram ? "primary" : "outline-secondary"}
+                                                        onClick={() => handleAttributeChange('ram', ram)}
+                                                        className="variant-option-btn"
+                                                    >
+                                                        {ram}
+                                                    </Button>
+                                                ))}
                                             </div>
-                                        </Col>
-                                        <Col xs={6} md={3}>
-                                            <div className="stat-card text-center p-2 bg-light rounded">
-                                                <i className="bi bi-people text-info fs-4"></i>
-                                                <div className="fw-bold">{productStats.uniqueBuyers}</div>
-                                                <small className="text-muted">Người mua</small>
+                                        </div>
+                                    )}
+
+                                    {/* Storage Selection */}
+                                    {availableAttributes.storage && availableAttributes.storage.length > 0 && (
+                                        <div className="mb-3">
+                                            <label className="form-label small text-muted">Bộ nhớ:</label>
+                                            <div className="d-flex gap-2 flex-wrap">
+                                                {availableAttributes.storage.map(storage => (
+                                                    <Button
+                                                        key={storage}
+                                                        size="sm"
+                                                        variant={selectedAttributes.storage === storage ? "primary" : "outline-secondary"}
+                                                        onClick={() => handleAttributeChange('storage', storage)}
+                                                        className="variant-option-btn"
+                                                    >
+                                                        {storage}
+                                                    </Button>
+                                                ))}
                                             </div>
-                                        </Col>
-                                        <Col xs={6} md={3}>
-                                            <div className="stat-card text-center p-2 bg-light rounded">
-                                                <i className="bi bi-chat-left-text text-warning fs-4"></i>
-                                                <div className="fw-bold">{productStats.uniqueReviewers}</div>
-                                                <small className="text-muted">Đánh giá</small>
-                                            </div>
-                                        </Col>
-                                    </Row>
+                                        </div>
+                                    )}
+
+                                    {/* Selected Variant Info */}
+                                    {selectedVariant && (
+                                        <div className="selected-variant-info mt-2 p-2 bg-light rounded">
+                                            <small className="text-muted">
+                                                <i className="bi bi-check-circle text-success me-1"></i>
+                                                <strong>{selectedVariant.name}</strong> - SKU: {selectedVariant.sku}
+                                            </small>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
                             <div className="stock-section my-3">
                                 <strong className="me-2">Tình trạng:</strong>
-                                {isOutOfStock ? (
-                                    <Badge bg="danger">
-                                        <i className="bi bi-x-circle me-1"></i>
-                                        Hết hàng
-                                    </Badge>
-                                ) : (
-                                    <Badge bg="success">
-                                        <i className="bi bi-check-circle me-1"></i>
-                                        Còn {product.stock} sản phẩm
-                                    </Badge>
-                                )}
+                                {(() => {
+                                    const stock = selectedVariant ? selectedVariant.stock : product.stock;
+                                    const outOfStock = stock === 0;
+
+                                    return outOfStock ? (
+                                        <Badge bg="danger">
+                                            <i className="bi bi-x-circle me-1"></i>
+                                            Hết hàng
+                                        </Badge>
+                                    ) : (
+                                        <Badge bg="success">
+                                            <i className="bi bi-check-circle me-1"></i>
+                                            Còn {stock} sản phẩm
+                                        </Badge>
+                                    );
+                                })()}
                             </div>
-
-                            {/* Stock Progress Bar */}
-                            {!isOutOfStock && product.stock > 0 && (
-                                <div className="stock-progress mb-4">
-                                    <ProgressBar
-                                        now={((product.sold || 0) / ((product.sold || 0) + product.stock) * 100)}
-                                        variant="danger"
-                                        style={{ height: '8px', borderRadius: '4px' }}
-                                    />
-                                    <div className="d-flex justify-content-between mt-1">
-                                        <small className="text-muted text-uppercase" style={{ fontSize: '0.75rem' }}>Đã bán: {product.sold || 0}</small>
-                                        <small className="text-muted text-uppercase" style={{ fontSize: '0.75rem' }}>Tổng cộng: {(product.sold || 0) + product.stock}</small>
-                                    </div>
-                                </div>
-                            )}
-
 
                             <hr />
 
@@ -489,36 +637,15 @@ export default function ProductDetail() {
                 </Row>
 
                 <div className="mt-5">
-                    <Nav variant="pills" className="order-filters mb-4">
-                        <Nav.Item>
-                            <Nav.Link active={activeTab === 'reviews'} onClick={() => setActiveTab('reviews')}>Đánh giá</Nav.Link>
-                        </Nav.Item>
-                        <Nav.Item>
-                            <Nav.Link active={activeTab === 'comments'} onClick={() => setActiveTab('comments')}>Bình luận</Nav.Link>
-                        </Nav.Item>
-                        <Nav.Item>
-                            <Nav.Link active={activeTab === 'similar'} onClick={() => setActiveTab('similar')}>Sản phẩm tương tự</Nav.Link>
-                        </Nav.Item>
-                    </Nav>
-
-                    {activeTab === 'reviews' && (
-                        <>
-                            {/* Review section is rendered below */}
-                        </>
-                    )}
-
-                    {activeTab === 'comments' && (
-                        <ProductCommentsSection productId={id} />
-                    )}
-
-                    {activeTab === 'similar' && (
-                        <SimilarProductsSection productId={id} />
-                    )}
-                </div>
-
-                {activeTab === 'reviews' && (
+                    {/* 1. Reviews Section */}
                     <ProductReviewsSection productId={id} />
-                )}
+
+                    {/* 2. Comments Section */}
+                    <ProductCommentsSection productId={id} />
+
+                    {/* 3. Similar Products Section */}
+                    <SimilarProductsSection productId={id} />
+                </div>
 
             </Container>
 

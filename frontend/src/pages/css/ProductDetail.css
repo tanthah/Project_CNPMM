@@ -1,8 +1,6 @@
 /* frontend/src/pages/css/ProductDetail.css - ENHANCED */
 .product-detail-page {
     min-height: 100vh;
-    max-width: 1300px;
-    margin: 0 auto;
     background: #f8f9fa;
 }
 
@@ -243,9 +241,12 @@
 }
 
 @keyframes heartbeat {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
     }
+
     50% {
         transform: scale(1.2);
     }
@@ -274,6 +275,10 @@
 
 .product-card-small img {
     transition: transform 0.3s ease;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
 }
 
 .product-card-small:hover img {
@@ -314,13 +319,14 @@
     .product-info-section {
         margin-top: 1.5rem;
     }
-    
+
     .stat-card .fw-bold {
         font-size: 1.2rem;
     }
 }
 
 @media (max-width: 576px) {
+
     .product-images-section,
     .product-info-section {
         padding: 1rem;
@@ -341,17 +347,16 @@
     .action-buttons .btn {
         width: 100%;
     }
-    
+
     .product-stats-detail .row {
         gap: 0.5rem;
     }
-    
+
     .stat-card {
         padding: 1rem !important;
     }
-    
+
     .stat-card .fw-bold {
         font-size: 1rem;
     }
 }
-

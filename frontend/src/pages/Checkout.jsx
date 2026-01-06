@@ -1,11 +1,13 @@
-// frontend/src/pages/Checkout.jsx - HANDLE BUY NOW & SELECTED ITEMS
+// frontend/src/pages/Checkout.jsx - HANDLE BUY NOW & SELECTED ITEMS WITH COUPON
 import React, { useEffect, useState } from 'react';
-import { Container, Row, Col, Card, Button, Form, Alert, Spinner } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Form, Alert, Spinner, InputGroup } from 'react-bootstrap';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchCart } from '../redux/cartSlice';
 import orderApi from '../api/orderApi';
 import addressApi from '../api/addressApi';
+import couponApi from '../api/couponApi';
+import loyaltyApi from '../api/loyaltyApi';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import './css/Checkout.css';
@@ -26,6 +28,17 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showAddressModal, setShowAddressModal] = useState(false);
+
+  // ✅ State cho mã giảm giá
+  const [couponCode, setCouponCode] = useState('');
+  const [couponData, setCouponData] = useState(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
+
+  // ✅ State cho điểm thưởng
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0); // Điểm khả dụng
+  const [usedPoints, setUsedPoints] = useState(0); // Điểm muốn dùng
+  const [pointsError, setPointsError] = useState('');
 
   const shippingFee = 30000;
 
@@ -50,18 +63,30 @@ export default function Checkout() {
     // ✅ Xử lý Buy Now
     if (location.state?.buyNow && location.state?.product) {
       setCheckoutItems([location.state.product]);
-    } 
+    }
     // ✅ Xử lý Selected Items từ Cart
     else if (location.state?.selectedItems) {
       setCheckoutItems(location.state.selectedItems);
-    } 
+    }
     // ✅ Fallback: Lấy toàn bộ giỏ hàng
     else {
       dispatch(fetchCart());
     }
 
     loadAddresses();
+    loadLoyaltyPoints();
   }, [dispatch, token, navigate, location.state]);
+
+  const loadLoyaltyPoints = async () => {
+    try {
+      const response = await loyaltyApi.getLoyaltyPoints();
+      if (response.data.success) {
+        setLoyaltyPoints(response.data.loyaltyPoints?.availablePoints || 0);
+      }
+    } catch (error) {
+      console.error('Error loading loyalty points:', error);
+    }
+  };
 
   // ✅ Nếu không có items từ state, dùng cart
   useEffect(() => {
@@ -75,7 +100,7 @@ export default function Checkout() {
       const response = await addressApi.getAddresses();
       const addressList = response.data.addresses;
       setAddresses(addressList);
-      
+
       const defaultAddr = addressList.find(addr => addr.isDefault);
       if (defaultAddr) {
         setSelectedAddress(defaultAddr._id);
@@ -85,6 +110,34 @@ export default function Checkout() {
     } catch (err) {
       console.error('Error loading addresses:', err);
     }
+  };
+
+  // ✅ Áp dụng mã giảm giá
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+
+    setCouponLoading(true);
+    setCouponError('');
+
+    try {
+      const response = await couponApi.validateCoupon(couponCode, totalPrice);
+      if (response.data.success) {
+        setCouponData(response.data.coupon);
+        notify.success('Áp dụng mã giảm giá thành công!');
+      }
+    } catch (err) {
+      setCouponError(err.response?.data?.message || 'Mã giảm giá không hợp lệ');
+      setCouponData(null);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  // ✅ Xóa mã giảm giá
+  const handleRemoveCoupon = () => {
+    setCouponCode('');
+    setCouponData(null);
+    setCouponError('');
   };
 
 
@@ -111,7 +164,9 @@ export default function Checkout() {
         addressId: selectedAddress,
         notes,
         shippingFee,
-        items: itemsPayload
+        items: itemsPayload,
+        couponCode: couponData?.code || null,
+        usedPoints: usedPoints > 0 ? usedPoints : null
       });
 
       if (response.data.success) {
@@ -163,6 +218,42 @@ export default function Checkout() {
 
   const totalQuantity = checkoutItems.reduce((sum, item) => sum + item.quantity, 0);
 
+  // ✅ Tính giảm giá và tổng cộng
+  const discountAmount = couponData?.discount || 0;
+
+  // 1 điểm = 200 VNĐ
+  const pointsValue = usedPoints * 200;
+
+  const finalTotal = totalPrice + shippingFee - discountAmount - pointsValue;
+
+  // Handler for points input
+  const handlePointsChange = (e) => {
+    const val = parseInt(e.target.value) || 0;
+
+    if (val < 0) return;
+
+    if (val > loyaltyPoints) {
+      setPointsError(`Bạn chỉ có ${loyaltyPoints} điểm`);
+      setUsedPoints(loyaltyPoints);
+      return;
+    }
+
+    // Check if discount > total order value (before points)
+    const maxDiscount = totalPrice + shippingFee - discountAmount;
+    const maxPoints = Math.floor(maxDiscount / 200);
+
+    if (val > maxPoints) {
+      // Cho phép nhập nhưng cảnh báo hoặc auto correct?
+      // Ở đây auto correct để an toàn
+      setPointsError(`Tối đa có thể dùng ${maxPoints} điểm cho đơn này`);
+      setUsedPoints(maxPoints);
+      return;
+    }
+
+    setUsedPoints(val);
+    setPointsError('');
+  };
+
   return (
     <>
       <Header />
@@ -188,8 +279,8 @@ export default function Checkout() {
                   <i className="bi bi-geo-alt me-2"></i>
                   Địa chỉ giao hàng
                 </h5>
-                <Button 
-                  variant="outline-primary" 
+                <Button
+                  variant="outline-primary"
                   size="sm"
                   onClick={() => setShowAddressModal(true)}
                 >
@@ -205,7 +296,7 @@ export default function Checkout() {
                 ) : (
                   <>
                     {addresses.map((addr) => (
-                      <div 
+                      <div
                         key={addr._id}
                         className={`address-item p-3 mb-2 border rounded ${selectedAddress === addr._id ? 'border-primary bg-light' : ''}`}
                         onClick={() => setSelectedAddress(addr._id)}
@@ -246,8 +337,8 @@ export default function Checkout() {
               <Card.Body>
                 {checkoutItems.map((item, index) => (
                   <div key={index} className="d-flex align-items-center mb-3 pb-3 border-bottom">
-                    <img 
-                      src={item.productImage || item.productId?.images?.[0] || 'https://via.placeholder.com/80'} 
+                    <img
+                      src={item.productImage || item.productId?.images?.[0] || 'https://via.placeholder.com/80'}
                       alt={item.productName || item.productId?.name}
                       style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }}
                     />
@@ -301,6 +392,79 @@ export default function Checkout() {
                 <h5 className="mb-0">Tóm tắt đơn hàng</h5>
               </Card.Header>
               <Card.Body>
+                {/* ✅ Mã giảm giá */}
+                <div className="coupon-section mb-3">
+                  <label className="form-label fw-bold">
+                    <i className="bi bi-tag me-2"></i>
+                    Mã giảm giá
+                  </label>
+                  <InputGroup>
+                    <Form.Control
+                      type="text"
+                      placeholder="Nhập mã giảm giá..."
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      disabled={couponData !== null}
+                      className="coupon-input"
+                    />
+                    {couponData ? (
+                      <Button variant="outline-danger" onClick={handleRemoveCoupon}>
+                        <i className="bi bi-x-lg"></i>
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline-primary"
+                        onClick={handleApplyCoupon}
+                        disabled={couponLoading || !couponCode.trim()}
+                      >
+                        {couponLoading ? <Spinner animation="border" size="sm" /> : 'Áp dụng'}
+                      </Button>
+                    )}
+                  </InputGroup>
+                  {couponError && <small className="text-danger mt-1 d-block">{couponError}</small>}
+                  {couponData && (
+                    <div className="alert alert-success mt-2 py-2 mb-0">
+                      <i className="bi bi-check-circle me-2"></i>
+                      Giảm <strong>{couponData.discount.toLocaleString('vi-VN')}đ</strong>
+                    </div>
+                  )}
+                </div>
+
+                {/* ✅ Điểm thưởng - Simple Loyalty */}
+                <div className="loyalty-section mb-3 border-top pt-3">
+                  <div className="d-flex justify-content-between align-items-center mb-1">
+                    <label className="form-label fw-bold mb-0">
+                      <i className="bi bi-star-fill text-warning me-2"></i>
+                      Dùng điểm thưởng
+                    </label>
+                    <small className="text-muted">
+                      Có sẵn: <strong>{loyaltyPoints}</strong> điểm
+                    </small>
+                  </div>
+
+                  <div className="input-group">
+                    <input
+                      type="number"
+                      className="form-control"
+                      placeholder="Nhập số điểm..."
+                      value={usedPoints || ''}
+                      onChange={handlePointsChange}
+                      min="0"
+                      max={loyaltyPoints}
+                      disabled={loyaltyPoints === 0}
+                    />
+                    <span className="input-group-text bg-white text-success">
+                      -{(usedPoints * 200).toLocaleString('vi-VN')}đ
+                    </span>
+                  </div>
+                  <div className="form-text small text-muted">
+                    5 điểm = 1.000đ. Tối đa dùng {loyaltyPoints} điểm.
+                  </div>
+                  {pointsError && <small className="text-danger">{pointsError}</small>}
+                </div>
+
+                <hr />
+
                 <div className="d-flex justify-content-between mb-2">
                   <span>Tạm tính:</span>
                   <strong>{totalPrice.toLocaleString('vi-VN')}đ</strong>
@@ -309,11 +473,23 @@ export default function Checkout() {
                   <span>Phí vận chuyển:</span>
                   <strong>{shippingFee.toLocaleString('vi-VN')}đ</strong>
                 </div>
+                {discountAmount > 0 && (
+                  <div className="d-flex justify-content-between mb-2 text-success">
+                    <span>Coupon:</span>
+                    <strong>-{discountAmount.toLocaleString('vi-VN')}đ</strong>
+                  </div>
+                )}
+                {usedPoints > 0 && (
+                  <div className="d-flex justify-content-between mb-2 text-success">
+                    <span>Điểm thưởng ({usedPoints}):</span>
+                    <strong>-{(usedPoints * 200).toLocaleString('vi-VN')}đ</strong>
+                  </div>
+                )}
                 <hr />
                 <div className="d-flex justify-content-between mb-3">
                   <h5>Tổng cộng:</h5>
                   <h5 className="text-danger">
-                    {(totalPrice + shippingFee).toLocaleString('vi-VN')}đ
+                    {finalTotal.toLocaleString('vi-VN')}đ
                   </h5>
                 </div>
 

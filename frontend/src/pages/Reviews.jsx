@@ -14,7 +14,7 @@ export default function Reviews() {
   const dispatch = useDispatch();
   const { token } = useSelector((s) => s.auth);
   const { pendingReviews, userReviews, loading, error } = useSelector((s) => s.review);
-  
+
   const [activeTab, setActiveTab] = useState('pending');
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -24,7 +24,7 @@ export default function Reviews() {
       navigate('/login');
       return;
     }
-    
+
     if (activeTab === 'pending') {
       dispatch(fetchPendingReviews());
     } else {
@@ -40,7 +40,7 @@ export default function Reviews() {
   return (
     <>
       <Header />
-      
+
       <Container className="py-4 reviews-page">
         <h2 className="mb-4">
           <i className="bi bi-star me-2"></i>
@@ -55,9 +55,9 @@ export default function Reviews() {
         )}
 
         {/* Tabs */}
-        <Nav variant="pills" className="mb-4">
+        <Nav variant="pills" className="mb-4 d-flex flex-row gap-2">
           <Nav.Item>
-            <Nav.Link 
+            <Nav.Link
               active={activeTab === 'pending'}
               onClick={() => setActiveTab('pending')}
             >
@@ -66,7 +66,7 @@ export default function Reviews() {
             </Nav.Link>
           </Nav.Item>
           <Nav.Item>
-            <Nav.Link 
+            <Nav.Link
               active={activeTab === 'completed'}
               onClick={() => setActiveTab('completed')}
             >
@@ -105,14 +105,14 @@ export default function Reviews() {
                         <Card className="h-100 pending-review-card">
                           <Card.Body>
                             <div className="d-flex align-items-start mb-3">
-                              <img 
+                              <img
                                 src={item.product.images[0]}
                                 alt={item.product.name}
-                                style={{ 
-                                  width: '80px', 
-                                  height: '80px', 
-                                  objectFit: 'cover', 
-                                  borderRadius: '8px' 
+                                style={{
+                                  width: '80px',
+                                  height: '80px',
+                                  objectFit: 'cover',
+                                  borderRadius: '8px'
                                 }}
                               />
                               <div className="ms-3 flex-grow-1">
@@ -126,16 +126,16 @@ export default function Reviews() {
                                 </div>
                               </div>
                             </div>
-                            
-                            <Button 
-                              variant="primary" 
+
+                            <Button
+                              variant="primary"
                               className="w-100"
                               onClick={() => handleReviewClick(item)}
                             >
                               <i className="bi bi-star me-2"></i>
                               Đánh giá ngay
                             </Button>
-                            
+
                             <div className="text-center mt-2">
                               <small className="text-muted">
                                 <i className="bi bi-gift me-1"></i>
@@ -169,26 +169,26 @@ export default function Reviews() {
                         <Card.Body>
                           <Row>
                             <Col md={3}>
-                              <img 
+                              <img
                                 src={review.productId?.images?.[0] || 'https://via.placeholder.com/100'}
                                 alt={review.productId?.name}
-                                style={{ 
-                                  width: '100%', 
+                                style={{
+                                  width: '100%',
                                   maxWidth: '150px',
-                                  height: '150px', 
-                                  objectFit: 'cover', 
-                                  borderRadius: '8px' 
+                                  height: '150px',
+                                  objectFit: 'cover',
+                                  borderRadius: '8px'
                                 }}
                               />
                             </Col>
-                            
+
                             <Col md={9}>
                               <div className="d-flex justify-content-between align-items-start mb-2">
                                 <div>
                                   <h5 className="mb-1">{review.productId?.name}</h5>
                                   <div className="text-warning">
                                     {[1, 2, 3, 4, 5].map((star) => (
-                                      <i 
+                                      <i
                                         key={star}
                                         className={star <= review.rating ? 'bi bi-star-fill' : 'bi bi-star'}
                                       ></i>
@@ -199,9 +199,9 @@ export default function Reviews() {
                                   {new Date(review.createdAt).toLocaleDateString('vi-VN')}
                                 </small>
                               </div>
-                              
+
                               <p className="mb-2">{review.comment || 'Không có nhận xét'}</p>
-                              
+
                               <div className="d-flex justify-content-between align-items-center">
                                 <div>
                                   <Badge bg="success" className="me-2">
@@ -212,10 +212,10 @@ export default function Reviews() {
                                     Đơn hàng: {review.orderId?.orderCode}
                                   </small>
                                 </div>
-                                
+
                                 <div>
-                                  <Button 
-                                    variant="outline-secondary" 
+                                  <Button
+                                    variant="outline-secondary"
                                     size="sm"
                                     onClick={() => navigate(`/product/${review.productId._id}`)}
                                   >
@@ -239,7 +239,7 @@ export default function Reviews() {
 
       {/* Review Form Modal */}
       {selectedProduct && (
-        <ReviewForm 
+        <ReviewForm
           show={showReviewForm}
           onHide={() => {
             setShowReviewForm(false);

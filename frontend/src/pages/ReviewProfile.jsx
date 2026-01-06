@@ -3,7 +3,7 @@ import React, { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, useNavigate } from 'react-router-dom'
 import { Container, Card, Button, Row, Col, Image, Alert, Spinner } from 'react-bootstrap'
-import { logout } from '../redux/authSlice'
+import { logoutAsync } from '../redux/authSlice'
 import { fetchUserProfile } from '../redux/editUserSlice'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -19,7 +19,7 @@ export default function ReviewProfile() {
   }, [dispatch])
 
   const handleLogout = () => {
-    dispatch(logout())
+    dispatch(logoutAsync())
     navigate('/login')
   }
 
@@ -53,7 +53,7 @@ export default function ReviewProfile() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Header />
-      
+
       <Container className="py-5" style={{ flex: 1 }}>
         <Row className="justify-content-center">
           <Col xs={12} md={8} lg={6}>
@@ -82,9 +82,9 @@ export default function ReviewProfile() {
                   <Image
                     src={getAvatarUrl()}
                     roundedCircle
-                    style={{ 
-                      width: '200px', 
-                      height: '200px', 
+                    style={{
+                      width: '200px',
+                      height: '200px',
                       objectFit: 'cover',
                       border: '4px solid #0d6efd',
                       boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
@@ -166,14 +166,7 @@ export default function ReviewProfile() {
                     Chỉnh sửa hồ sơ
                   </Button>
 
-                  <Button
-                    variant="outline-secondary"
-                    size="lg"
-                    onClick={() => navigate('/orders')}
-                  >
-                    <i className="bi bi-box-seam me-2"></i>
-                    Đơn hàng của tôi
-                  </Button>
+
 
                   <Button
                     variant="outline-danger"
